@@ -10,9 +10,9 @@ import os
 from typing import Any, Callable, Generator, Optional, TypeVar, cast
 
 from fastapi import Depends
-from sqlalchemy import create_engine, Engine
+from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session as SQLAlchemySession
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from fastcore.config.app import AppSettings, DatabaseSettings, Environment
 
@@ -34,15 +34,15 @@ SessionLocal: Optional[Callable[[], Session]] = None
 def _get_settings() -> AppSettings:
     """
     Get or initialize application settings.
-    
+
     This internal function ensures settings are loaded from the environment
     using the application's environment configuration.
-    
+
     Returns:
         Application settings based on the current environment
     """
     global _settings
-    
+
     if _settings is None:
         # Try to detect environment or default to development
         env_name = os.environ.get("APP_ENVIRONMENT", "development")
@@ -50,9 +50,9 @@ def _get_settings() -> AppSettings:
             env = Environment(env_name.lower())
         except ValueError:
             env = Environment.DEVELOPMENT
-        
+
         _settings = AppSettings.load(env)
-    
+
     return _settings
 
 
@@ -89,34 +89,36 @@ class DatabaseManager:
     def _create_engine(self, echo: bool = False, pool_pre_ping: bool = True) -> Engine:
         """
         Create a SQLAlchemy engine instance.
-        
+
         Args:
             echo: Whether to echo SQL statements
             pool_pre_ping: Whether to enable connection pool pre-ping
-            
+
         Returns:
             Configured SQLAlchemy engine
         """
         url = self.settings.URL
-        
+
         # Basic connection arguments
-        engine_args = {
+        engine_args: dict[str, Any] = {
             "echo": echo,
             "pool_pre_ping": pool_pre_ping,
         }
-        
+
         # SQLite has different connection pooling requirements
-        if url.startswith('sqlite'):
+        if url.startswith("sqlite"):
             return create_engine(url, **engine_args)
-        
+
         # For other database systems, add more connection pool settings
-        engine_args.update({
-            "pool_size": self.settings.POOL_SIZE,
-            "max_overflow": 10,
-            "pool_timeout": 30,
-            "pool_recycle": 1800,
-        })
-        
+        engine_args.update(
+            {
+                "pool_size": self.settings.POOL_SIZE,
+                "max_overflow": 10,
+                "pool_timeout": 30,
+                "pool_recycle": 1800,
+            }
+        )
+
         return create_engine(url, **engine_args)
 
     def get_session(self) -> Generator[Session, None, None]:
@@ -133,49 +135,51 @@ class DatabaseManager:
             session.close()
 
 
-def initialize_db(settings: Optional[DatabaseSettings] = None, echo: bool = False) -> None:
+def initialize_db(
+    settings: Optional[DatabaseSettings] = None, echo: bool = False
+) -> None:
     """
     Initialize the database connection.
-    
+
     This function can be called during application startup to configure
     the database connection. If settings are not provided, it will use
     the settings from the application environment configuration.
-    
+
     Args:
         settings: Database connection settings (optional)
         echo: Whether to echo SQL statements (useful for debugging)
-    
+
     Example:
         ```python
         from fastapi import FastAPI
         from fastcore.db import initialize_db
-        
+
         app = FastAPI()
-        
+
         @app.on_event("startup")
         def startup_db_client():
             # Automatically uses settings from environment
             initialize_db()
-        
+
         # Or with custom settings:
         # initialize_db(custom_settings)
         ```
     """
     global engine, SessionLocal
-    
+
     # If settings are not provided, use the app settings from environment
     if settings is None:
         app_settings = _get_settings()
-        
+
         # Check if database settings exist in app settings
         if app_settings.DB is None:
             raise RuntimeError(
                 "Database settings not found in application configuration. "
                 "Please provide database settings explicitly or set them in environment variables."
             )
-        
+
         settings = app_settings.DB
-    
+
     db_manager = DatabaseManager(settings, echo=echo)
     engine = db_manager.engine
     SessionLocal = db_manager.session_factory
@@ -184,10 +188,10 @@ def initialize_db(settings: Optional[DatabaseSettings] = None, echo: bool = Fals
 def get_db() -> Generator[Session, None, None]:
     """
     FastAPI dependency for database session injection.
-    
+
     This function will automatically initialize the database connection
     if it hasn't been initialized yet.
-    
+
     Yields:
         A SQLAlchemy session that will be automatically closed
 
@@ -208,17 +212,17 @@ def get_db() -> Generator[Session, None, None]:
         ```
     """
     global SessionLocal
-    
+
     # Auto-initialize if not already initialized
     if SessionLocal is None:
         initialize_db()
-        
+
         # If still None after initialization, raise an error
         if SessionLocal is None:
             raise RuntimeError(
                 "Database initialization failed. Please check your database configuration."
             )
-    
+
     session: Session = SessionLocal()
     try:
         yield session
@@ -229,10 +233,10 @@ def get_db() -> Generator[Session, None, None]:
 def db_dependency(func: Callable[..., T]) -> Callable[..., T]:
     """
     Decorator to inject a database session as the first parameter.
-    
+
     This function will automatically initialize the database connection
     if it hasn't been initialized yet.
-    
+
     Args:
         func: Function that takes a database session as its first parameter
 
@@ -246,20 +250,21 @@ def db_dependency(func: Callable[..., T]) -> Callable[..., T]:
             return db.query(User).filter(User.email == email).first()
         ```
     """
+
     def wrapper(*args: Any, **kwargs: Any) -> T:
         global SessionLocal
-        
+
         # Auto-initialize if not already initialized
         if SessionLocal is None:
             initialize_db()
-            
+
             # If still None after initialization, raise an error
             if SessionLocal is None:
                 raise RuntimeError(
                     "Database initialization failed. Please check your database configuration."
                 )
-        
+
         with SessionLocal() as session:
             return func(session, *args, **kwargs)
-    
+
     return cast(Callable[..., T], wrapper)

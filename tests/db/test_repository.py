@@ -180,12 +180,12 @@ class TestBaseRepository:
         """Test delete method."""
         # Setup mock user to return from get_or_404
         mock_user = UserModel(id=1, email="delete@example.com", name="Delete Me")
-        
+
         # Mock the get_or_404 method to return our mock user
-        with patch.object(BaseRepository, 'get_or_404', return_value=mock_user):
+        with patch.object(BaseRepository, "get_or_404", return_value=mock_user):
             # Call method
             result = self.user_repo.delete(self.db, id=1)
-            
+
             # Verify database operations
             self.db.delete.assert_called_with(mock_user)
             assert self.db.commit.called
