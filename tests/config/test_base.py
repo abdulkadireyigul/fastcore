@@ -4,16 +4,12 @@ Tests for the base configuration management system.
 
 import json
 import os
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-# Add the project root to the path to enable imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 # Import from the config module
-from core.config.base import BaseSettings, Environment
+from fastcore.config.base import BaseSettings
 
 
 class TestSettings(BaseSettings):

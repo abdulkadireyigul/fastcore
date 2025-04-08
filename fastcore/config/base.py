@@ -9,13 +9,18 @@ import json
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, Type, TypeVar, Union, cast, get_type_hints
+from typing import Any, Dict, List, Optional, Type, TypeVar, get_origin, get_type_hints
 
 T = TypeVar("T", bound="BaseSettings")
 
 
 class Environment(str, Enum):
-    """Environment types for configuration loading."""
+    """
+    Environment types for configuration loading.
+
+    This enum defines standard environment types used for configuration management.
+    Each environment can have different configuration values and behaviors.
+    """
 
     DEVELOPMENT = "development"
     TESTING = "testing"
@@ -28,14 +33,37 @@ class BaseSettings:
     Base class for application settings.
 
     Provides methods to load settings from multiple sources in priority order:
-    1. Environment variables
-    2. Secrets directory
-    3. Environment file
-    4. Default values
+    1. Environment variables (highest priority)
+    2. Secrets directory (medium priority)
+    3. Environment file (lowest priority)
+    4. Default values defined in the class
+
+    Example:
+        ```python
+        class DatabaseSettings(BaseSettings):
+            HOST: str = "localhost"
+            PORT: int = 5432
+            USER: str = "postgres"
+            PASSWORD: str
+
+            class Config:
+                env_prefix = "DB_"
+
+        # Load settings from environment variables (DB_HOST, DB_PORT, etc.)
+        db_settings = DatabaseSettings.from_env()
+        print(db_settings.HOST)  # Will use env var DB_HOST if set, otherwise "localhost"
+        ```
     """
 
     class Config:
-        """Configuration for settings behavior."""
+        """
+        Configuration for settings behavior.
+
+        Attributes:
+            env_prefix: Prefix to add to environment variable names when looking them up
+            env_file: Path to a JSON file containing configuration values
+            secrets_dir: Directory containing secret values stored in individual files
+        """
 
         env_prefix: str = ""
         env_file: Optional[str] = None
@@ -73,7 +101,16 @@ class BaseSettings:
         return instance
 
     def _load_from_env_vars(self) -> None:
-        """Load and apply settings from environment variables."""
+        """
+        Load and apply settings from environment variables.
+
+        Environment variables are converted to appropriate types based on the type
+        annotations in the class definition. The method handles basic types (bool, int, float),
+        as well as complex types like lists and dictionaries.
+
+        For boolean values, the following strings are considered True:
+        "true", "1", "yes", "y", "on" (case-insensitive).
+        """
         # Get type hints for proper type conversion
         type_hints = get_type_hints(self.__class__)
 
@@ -94,11 +131,23 @@ class BaseSettings:
             if env_val is not None:
                 # Type conversion based on annotation
                 if field_type == bool:
-                    converted_value: Any = env_val.lower() in ("true", "1", "yes")
+                    converted_value: Any = env_val.lower() in (
+                        "true",
+                        "1",
+                        "yes",
+                        "y",
+                        "on",
+                    )
                 elif field_type == int:
                     converted_value = int(env_val)
                 elif field_type == float:
                     converted_value = float(env_val)
+                elif get_origin(field_type) is list or field_type == List:
+                    # Handle list types - parse comma-separated values
+                    converted_value = [item.strip() for item in env_val.split(",")]
+                elif get_origin(field_type) is dict or field_type == Dict:
+                    # Handle dictionary types - parse JSON
+                    converted_value = json.loads(env_val)
                 else:
                     converted_value = env_val
 
@@ -106,7 +155,15 @@ class BaseSettings:
                 setattr(self, field_name, converted_value)
 
     def _load_from_file(self, file_path: str) -> None:
-        """Load and apply settings from a configuration file."""
+        """
+        Load and apply settings from a configuration file.
+
+        Args:
+            file_path: Path to the JSON configuration file to load
+
+        Currently only supports JSON format. The method reads the file and sets
+        attributes on the instance that match keys in the JSON object.
+        """
         if not file_path.endswith(".json"):
             return
 
@@ -123,7 +180,15 @@ class BaseSettings:
             pass
 
     def _load_from_secrets(self, secrets_dir: str) -> None:
-        """Load and apply settings from a secrets directory."""
+        """
+        Load and apply settings from a secrets directory.
+
+        Args:
+            secrets_dir: Path to the directory containing secret files
+
+        Each file in the directory should be named after a field in the settings class.
+        The content of the file becomes the value for that field.
+        """
         for field_name in get_type_hints(self.__class__).keys():
             if field_name.startswith("_"):
                 continue

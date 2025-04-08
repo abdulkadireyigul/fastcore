@@ -5,14 +5,14 @@ This module provides tools for managing application configuration
 in a consistent, type-safe, and environment-aware manner.
 """
 
-from core.config.app import (
+from fastcore.config.app import (
     APISettings,
     AppSettings,
     CORSSettings,
     DatabaseSettings,
     LoggingSettings,
 )
-from core.config.base import BaseSettings, Environment
+from fastcore.config.base import BaseSettings, Environment
 
 __all__ = [
     "BaseSettings",
