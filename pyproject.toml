@@ -1,0 +1,44 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "fastcore"
+version = "0.1.0"
+description = "Core utilities for FastAPI applications"
+authors = ["Abdulkadir Eyigül <abdulkadireyigul@gmail.com>"]
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/abdulkadireyigul/fastcore"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Framework :: FastAPI",
+]
+packages = [
+    {include = "core"},
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pydantic = ">=1.10.0,<2.0.0"
+fastapi = ">=0.95.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+black = "^23.0.0"
+isort = "^5.12.0"
+mypy = "^1.0.0"
+pytest-cov = "^4.0.0"
+
+[tool.poetry.group.db.dependencies]
+sqlalchemy = "^2.0.0"
+alembic = "^1.10.0"
+
+[tool.black]
+line-length = 88
+target-version = ["py38", "py39", "py310"]
+
+[tool.isort]
+profile = "black"
