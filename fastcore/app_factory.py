@@ -16,6 +16,10 @@ from fastcore.config.base import Environment
 from fastcore.db.session import initialize_db
 from fastcore.errors.exceptions import AppError
 from fastcore.errors.handlers import exception_handlers
+from fastcore.logging import configure_logging, get_logger
+
+# Logger for this module
+logger = get_logger(__name__)
 
 
 def create_app(
@@ -24,6 +28,7 @@ def create_app(
     enable_cors: bool = True,
     enable_error_handlers: bool = True,
     enable_database: bool = False,
+    enable_logging: bool = True,
     cors_origins: List[str] = None,
     middlewares: List[Dict[str, Any]] = None,
     exception_handler_overrides: Dict[Type[Exception], Callable] = None,
@@ -41,6 +46,7 @@ def create_app(
         enable_cors: Whether to enable CORS middleware
         enable_error_handlers: Whether to register default exception handlers
         enable_database: Whether to initialize database connection
+        enable_logging: Whether to configure logging based on settings
         cors_origins: List of allowed CORS origins (defaults to ["*"] in development)
         middlewares: Additional middlewares to add
         exception_handler_overrides: Custom exception handlers to override defaults
@@ -62,7 +68,14 @@ def create_app(
         ```
     """
     # Load settings
-    settings = settings_class.from_env(env)
+    settings = settings_class.load(env)
+
+    # Configure logging if enabled
+    if enable_logging:
+        configure_logging(
+            settings=settings.LOGGING if hasattr(settings, "LOGGING") else None
+        )
+        logger.info(f"Application starting in {env} environment")
 
     # Create FastAPI app with settings
     app = FastAPI(
@@ -84,6 +97,9 @@ def create_app(
             allow_methods=["*"],
             allow_headers=["*"],
         )
+        logger.debug(
+            f"CORS middleware configured with origins: {cors_origins or default_origins}"
+        )
 
     # Add custom middlewares
     if middlewares:
@@ -91,6 +107,7 @@ def create_app(
             middleware_class = middleware.get("class")
             middleware_args = middleware.get("args", {})
             app.add_middleware(middleware_class, **middleware_args)
+            logger.debug(f"Added middleware: {middleware_class.__name__}")
 
     # Add exception handlers
     if enable_error_handlers:
@@ -103,18 +120,26 @@ def create_app(
             for exc, handler in exception_handler_overrides.items():
                 app.add_exception_handler(exc, handler)
 
+        logger.debug("Exception handlers registered")
+
     # Initialize database if enabled
     if enable_database:
         # Set up database startup/shutdown events
         @app.on_event("startup")
         def startup_db_client():
+            logger.info("Initializing database connection")
             initialize_db(
                 settings=settings.DB if hasattr(settings, "DB") else None, echo=db_echo
             )
+            logger.info("Database connection initialized successfully")
 
     # Add health check endpoint
     @app.get("/health", tags=["system"])
     def health_check():
+        logger.debug("Health check endpoint called")
         return {"status": "ok", "environment": env}
+
+    # Log application startup
+    logger.info(f"FastAPI application '{app.title}' configured successfully")
 
     return app
