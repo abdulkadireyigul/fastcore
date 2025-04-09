@@ -5,7 +5,8 @@ This module provides functions to create and configure FastAPI applications
 with sensible defaults, making it easy to bootstrap new projects.
 """
 
-from typing import Any, Callable, Dict, List, Optional, Type
+from contextlib import asynccontextmanager
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,18 @@ from fastcore.db.session import initialize_db
 from fastcore.errors.exceptions import AppError
 from fastcore.errors.handlers import exception_handlers
 from fastcore.logging import configure_logging, get_logger
+from fastcore.middleware import (
+    CORSConfig,
+    I18nConfig,
+    RateLimitConfig,
+    TimingConfig,
+    TrustedHostsConfig,
+    configure_cors,
+    configure_i18n,
+    configure_rate_limiting,
+    configure_timing,
+    configure_trusted_hosts,
+)
 
 # Logger for this module
 logger = get_logger(__name__)
@@ -30,7 +43,15 @@ def create_app(
     enable_error_handlers: bool = True,
     enable_database: bool = False,
     enable_logging: bool = True,
-    cors_origins: List[str] = None,
+    enable_rate_limiting: bool = False,
+    enable_i18n: bool = False,
+    enable_trusted_hosts: bool = False,
+    enable_timing: bool = False,
+    cors_config: Optional[Union[CORSConfig, Dict[str, Any]]] = None,
+    rate_limit_config: Optional[Union[RateLimitConfig, Dict[str, Any]]] = None,
+    i18n_config: Optional[Union[I18nConfig, Dict[str, Any]]] = None,
+    trusted_hosts_config: Optional[Union[TrustedHostsConfig, Dict[str, Any]]] = None,
+    timing_config: Optional[Union[TimingConfig, Dict[str, Any]]] = None,
     middlewares: List[Dict[str, Any]] = None,
     exception_handler_overrides: Dict[Type[Exception], Callable] = None,
     db_echo: bool = False,
@@ -48,7 +69,15 @@ def create_app(
         enable_error_handlers: Whether to register default exception handlers
         enable_database: Whether to initialize database connection
         enable_logging: Whether to configure logging based on settings
-        cors_origins: List of allowed CORS origins (defaults to ["*"] in development)
+        enable_rate_limiting: Whether to enable rate limiting middleware
+        enable_i18n: Whether to enable internationalization middleware
+        enable_trusted_hosts: Whether to enable trusted hosts middleware
+        enable_timing: Whether to enable request timing middleware
+        cors_config: Configuration for CORS middleware
+        rate_limit_config: Configuration for rate limiting middleware
+        i18n_config: Configuration for internationalization middleware
+        trusted_hosts_config: Configuration for trusted hosts middleware
+        timing_config: Configuration for timing middleware
         middlewares: Additional middlewares to add
         exception_handler_overrides: Custom exception handlers to override defaults
         db_echo: Whether to echo SQL statements (only used when enable_database is True)
@@ -60,8 +89,21 @@ def create_app(
         ```python
         from fastcore.app_factory import create_app
         from fastcore.config.base import Environment
+        from fastcore.middleware import RateLimitConfig
 
+        # Create app with default settings
         app = create_app(env=Environment.DEVELOPMENT, enable_database=True)
+
+        # Or with custom middleware configuration
+        app = create_app(
+            env=Environment.PRODUCTION,
+            enable_rate_limiting=True,
+            rate_limit_config=RateLimitConfig(
+                limit=100,
+                window_seconds=60,
+                exclude_paths=["/docs", "/redoc"]
+            )
+        )
 
         @app.get("/")
         def read_root():
@@ -78,29 +120,81 @@ def create_app(
         )
         logger.info(f"Application starting in {env} environment")
 
-    # Create FastAPI app with settings
+    # Create lifespan context manager for startup and shutdown events
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # --- STARTUP EVENTS ---
+        # Initialize database if enabled
+        if enable_database:
+            logger.info("Initializing database connection")
+            initialize_db(
+                settings=settings.DB if hasattr(settings, "DB") else None, echo=db_echo
+            )
+            logger.info("Database connection initialized successfully")
+
+        # Configure cache
+        _configure_cache(settings)
+
+        # Yield control to FastAPI
+        yield
+
+        # --- SHUTDOWN EVENTS ---
+        # Add any cleanup code here if needed
+        logger.info("Application shutting down")
+
+    # Create FastAPI app with settings and lifespan
     app = FastAPI(
         title=getattr(settings, "TITLE", "FastAPI Application"),
         description=getattr(settings, "DESCRIPTION", "Powered by FastCore"),
         version=getattr(settings, "VERSION", "0.1.0"),
+        lifespan=lifespan,
     )
 
     # Register settings
     app.state.settings = settings
 
-    # Add CORS middleware
+    # Configure middleware (order is important)
+
+    # 1. Trusted Hosts middleware should be first (validates incoming hosts)
+    if enable_trusted_hosts:
+        if isinstance(trusted_hosts_config, dict):
+            trusted_hosts_config = TrustedHostsConfig(**trusted_hosts_config)
+        configure_trusted_hosts(app, trusted_hosts_config)
+        logger.debug("Trusted hosts middleware configured")
+
+    # 2. CORS middleware comes next
     if enable_cors:
-        default_origins = ["*"] if env == Environment.DEVELOPMENT else []
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=cors_origins or default_origins,
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-        logger.debug(
-            f"CORS middleware configured with origins: {cors_origins or default_origins}"
-        )
+        if cors_config:
+            # Use provided config
+            if isinstance(cors_config, dict):
+                cors_config = CORSConfig(**cors_config)
+            configure_cors(app, cors_config)
+        else:
+            # Use default CORS configuration based on environment
+            default_origins = ["*"] if env == Environment.DEVELOPMENT else []
+            configure_cors(app, allow_origins=default_origins)
+        logger.debug("CORS middleware configured")
+
+    # 3. Rate limiting middleware
+    if enable_rate_limiting:
+        if isinstance(rate_limit_config, dict):
+            rate_limit_config = RateLimitConfig(**rate_limit_config)
+        configure_rate_limiting(app, rate_limit_config)
+        logger.debug("Rate limiting middleware configured")
+
+    # 4. i18n middleware
+    if enable_i18n:
+        if isinstance(i18n_config, dict):
+            i18n_config = I18nConfig(**i18n_config)
+        configure_i18n(app, i18n_config)
+        logger.debug("Internationalization middleware configured")
+
+    # 5. Timing middleware
+    if enable_timing:
+        if isinstance(timing_config, dict):
+            timing_config = TimingConfig(**timing_config)
+        configure_timing(app, timing_config)
+        logger.debug("Request timing middleware configured")
 
     # Add custom middlewares
     if middlewares:
@@ -123,20 +217,6 @@ def create_app(
 
         logger.debug("Exception handlers registered")
 
-    # Initialize database if enabled
-    if enable_database:
-        # Set up database startup/shutdown events
-        @app.on_event("startup")
-        def startup_db_client():
-            logger.info("Initializing database connection")
-            initialize_db(
-                settings=settings.DB if hasattr(settings, "DB") else None, echo=db_echo
-            )
-            logger.info("Database connection initialized successfully")
-
-    # Configure cache on startup
-    configure_cache_on_startup(app, settings)
-
     # Add health check endpoint
     @app.get("/health", tags=["system"])
     def health_check():
@@ -149,39 +229,34 @@ def create_app(
     return app
 
 
-def configure_cache_on_startup(app: FastAPI, settings: AppSettings) -> None:
+def _configure_cache(settings: AppSettings) -> None:
     """
-    Configure the cache system on application startup.
+    Configure the cache system.
 
     Args:
-        app: The FastAPI application
         settings: The application settings
     """
+    cache_config = settings.CACHE
 
-    @app.on_event("startup")
-    def setup_cache() -> None:
-        """Initialize the cache when the application starts."""
-        cache_config = settings.CACHE
-
-        if cache_config.CACHE_TYPE == "redis":
-            # Configure Redis cache
-            configure_cache(
-                backend_type="redis",
-                host=cache_config.REDIS_HOST,
-                port=cache_config.REDIS_PORT,
-                db=cache_config.REDIS_DB,
-                password=cache_config.REDIS_PASSWORD,
-                prefix=cache_config.REDIS_PREFIX,
-            )
-        elif cache_config.CACHE_TYPE == "memory":
-            # Configure memory cache
-            configure_cache(
-                backend_type="memory",
-                max_size=cache_config.MEMORY_CACHE_MAX_SIZE,
-            )
-        elif cache_config.CACHE_TYPE == "null":
-            # Configure null cache (no-op)
-            configure_cache(backend_type="null")
-        else:
-            # Use memory cache as fallback
-            configure_cache(backend_type="memory")
+    if cache_config.CACHE_TYPE == "redis":
+        # Configure Redis cache
+        configure_cache(
+            backend_type="redis",
+            host=cache_config.REDIS_HOST,
+            port=cache_config.REDIS_PORT,
+            db=cache_config.REDIS_DB,
+            password=cache_config.REDIS_PASSWORD,
+            prefix=cache_config.REDIS_PREFIX,
+        )
+    elif cache_config.CACHE_TYPE == "memory":
+        # Configure memory cache
+        configure_cache(
+            backend_type="memory",
+            max_size=cache_config.MEMORY_CACHE_MAX_SIZE,
+        )
+    elif cache_config.CACHE_TYPE == "null":
+        # Configure null cache (no-op)
+        configure_cache(backend_type="null")
+    else:
+        # Use memory cache as fallback
+        configure_cache(backend_type="memory")
