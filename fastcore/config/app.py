@@ -114,6 +114,26 @@ class APISettings(FastCoreBaseSettings):
     DEBUG: bool = False
 
 
+class CacheConfig:
+    """Configuration for caching functionality."""
+
+    # Cache backend type: "memory", "redis", or "null"
+    CACHE_TYPE: str = "memory"
+
+    # Default TTL for cached items in seconds (None = no expiration)
+    DEFAULT_TTL: Optional[int] = 300
+
+    # Memory cache settings
+    MEMORY_CACHE_MAX_SIZE: int = 10000
+
+    # Redis cache settings
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: Optional[str] = None
+    REDIS_PREFIX: str = "fastcore:"
+
+
 class AppSettings(FastCoreBaseSettings):
     """
     Main application settings that combines all other settings.
@@ -127,6 +147,7 @@ class AppSettings(FastCoreBaseSettings):
         CORS: CORS configuration settings
         DB: Database connection settings (optional)
         LOGGING: Logging configuration
+        CACHE: Cache configuration
         SECRET_KEY: Application secret key for security features
         ALGORITHM: Hash algorithm for token generation (default: HS256)
         ACCESS_TOKEN_EXPIRE_MINUTES: Token expiration time in minutes
@@ -144,6 +165,7 @@ class AppSettings(FastCoreBaseSettings):
     CORS: CORSSettings = CORSSettings()
     DB: Optional[DatabaseSettings] = None
     LOGGING: LoggingSettings = LoggingSettings()
+    CACHE: CacheConfig = CacheConfig()
 
     # Additional application-specific settings
     SECRET_KEY: str

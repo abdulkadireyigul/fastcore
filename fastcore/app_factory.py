@@ -11,6 +11,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from fastcore.cache.manager import configure_cache
 from fastcore.config.app import AppSettings
 from fastcore.config.base import Environment
 from fastcore.db.session import initialize_db
@@ -133,6 +134,9 @@ def create_app(
             )
             logger.info("Database connection initialized successfully")
 
+    # Configure cache on startup
+    configure_cache_on_startup(app, settings)
+
     # Add health check endpoint
     @app.get("/health", tags=["system"])
     def health_check():
@@ -143,3 +147,41 @@ def create_app(
     logger.info(f"FastAPI application '{app.title}' configured successfully")
 
     return app
+
+
+def configure_cache_on_startup(app: FastAPI, settings: AppSettings) -> None:
+    """
+    Configure the cache system on application startup.
+
+    Args:
+        app: The FastAPI application
+        settings: The application settings
+    """
+
+    @app.on_event("startup")
+    def setup_cache() -> None:
+        """Initialize the cache when the application starts."""
+        cache_config = settings.CACHE
+
+        if cache_config.CACHE_TYPE == "redis":
+            # Configure Redis cache
+            configure_cache(
+                backend_type="redis",
+                host=cache_config.REDIS_HOST,
+                port=cache_config.REDIS_PORT,
+                db=cache_config.REDIS_DB,
+                password=cache_config.REDIS_PASSWORD,
+                prefix=cache_config.REDIS_PREFIX,
+            )
+        elif cache_config.CACHE_TYPE == "memory":
+            # Configure memory cache
+            configure_cache(
+                backend_type="memory",
+                max_size=cache_config.MEMORY_CACHE_MAX_SIZE,
+            )
+        elif cache_config.CACHE_TYPE == "null":
+            # Configure null cache (no-op)
+            configure_cache(backend_type="null")
+        else:
+            # Use memory cache as fallback
+            configure_cache(backend_type="memory")
