@@ -20,11 +20,13 @@ app = create_app(
     db_echo=True,  # SQL logging for development
 )
 
+
 # Example model (in a real app, this would be in a separate models.py file)
 class Item:
     def __init__(self, id: int, name: str):
         self.id = id
         self.name = name
+
 
 # Example data access (in a real app, this would use SQLAlchemy models)
 def get_items(db: Session):
@@ -32,10 +34,12 @@ def get_items(db: Session):
     # e.g., return db.query(ItemModel).all()
     return [Item(id=1, name="Item 1"), Item(id=2, name="Item 2")]
 
+
 # Example routes
 @app.get("/")
 def read_root():
     return {"message": "Welcome to FastAPI powered by FastCore!"}
+
 
 @app.get("/items/")
 def read_items(db: Session = Depends(get_db)):
@@ -43,12 +47,15 @@ def read_items(db: Session = Depends(get_db)):
     items = get_items(db)
     return [{"id": item.id, "name": item.name} for item in items]
 
+
 # Error handling example
 @app.get("/error")
 def trigger_error():
     # This will be caught by the exception handlers
     raise ValueError("Example error")
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

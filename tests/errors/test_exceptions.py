@@ -7,12 +7,12 @@ import pytest
 
 from fastcore.errors.exceptions import (
     AppError,
-    NotFoundError,
-    ValidationError,
     AuthenticationError,
     AuthorizationError,
     ConflictError,
     DatabaseError,
+    NotFoundError,
+    ValidationError,
 )
 
 

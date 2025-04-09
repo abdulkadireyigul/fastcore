@@ -7,17 +7,17 @@ error response models, and exception handlers for FastAPI applications.
 
 from fastcore.errors.exceptions import (
     AppError,
-    NotFoundError,
-    ValidationError,
     AuthenticationError,
     AuthorizationError,
     ConflictError,
     DatabaseError,
+    NotFoundError,
+    ValidationError,
 )
 from fastcore.errors.handlers import (
-    register_exception_handlers,
-    get_error_responses,
     ErrorResponse,
+    get_error_responses,
+    register_exception_handlers,
 )
 
 __all__ = [
@@ -29,7 +29,6 @@ __all__ = [
     "AuthorizationError",
     "ConflictError",
     "DatabaseError",
-    
     # Handlers
     "register_exception_handlers",
     "get_error_responses",

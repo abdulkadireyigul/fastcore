@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from fastcore.config.app import AppSettings
 from fastcore.config.base import Environment
 from fastcore.db.session import initialize_db
-from fastcore.errors.exceptions import AppException
+from fastcore.errors.exceptions import AppError
 from fastcore.errors.handlers import exception_handlers
 
 
@@ -34,7 +34,7 @@ def create_app(
 
     This factory function creates a FastAPI application with configuration loaded
     from the specified environment, and sets up common middleware and exception handlers.
-    
+
     Args:
         env: Environment to load configuration for
         settings_class: Settings class to use for configuration
@@ -45,17 +45,17 @@ def create_app(
         middlewares: Additional middlewares to add
         exception_handler_overrides: Custom exception handlers to override defaults
         db_echo: Whether to echo SQL statements (only used when enable_database is True)
-    
+
     Returns:
         Configured FastAPI application
-    
+
     Example:
         ```python
         from fastcore.app_factory import create_app
         from fastcore.config.base import Environment
-        
+
         app = create_app(env=Environment.DEVELOPMENT, enable_database=True)
-        
+
         @app.get("/")
         def read_root():
             return {"Hello": "World"}
@@ -63,17 +63,17 @@ def create_app(
     """
     # Load settings
     settings = settings_class.from_env(env)
-    
+
     # Create FastAPI app with settings
     app = FastAPI(
         title=getattr(settings, "TITLE", "FastAPI Application"),
         description=getattr(settings, "DESCRIPTION", "Powered by FastCore"),
         version=getattr(settings, "VERSION", "0.1.0"),
     )
-    
+
     # Register settings
     app.state.settings = settings
-    
+
     # Add CORS middleware
     if enable_cors:
         default_origins = ["*"] if env == Environment.DEVELOPMENT else []
@@ -84,32 +84,34 @@ def create_app(
             allow_methods=["*"],
             allow_headers=["*"],
         )
-    
+
     # Add custom middlewares
     if middlewares:
         for middleware in middlewares:
             middleware_class = middleware.get("class")
             middleware_args = middleware.get("args", {})
             app.add_middleware(middleware_class, **middleware_args)
-    
+
     # Add exception handlers
     if enable_error_handlers:
         # Default handlers
         for exc, handler in exception_handlers.items():
             app.add_exception_handler(exc, handler)
-        
+
         # Custom handler overrides
         if exception_handler_overrides:
             for exc, handler in exception_handler_overrides.items():
                 app.add_exception_handler(exc, handler)
-    
+
     # Initialize database if enabled
     if enable_database:
         # Set up database startup/shutdown events
         @app.on_event("startup")
         def startup_db_client():
-            initialize_db(settings=settings.DB if hasattr(settings, "DB") else None, echo=db_echo)
-    
+            initialize_db(
+                settings=settings.DB if hasattr(settings, "DB") else None, echo=db_echo
+            )
+
     # Add health check endpoint
     @app.get("/health", tags=["system"])
     def health_check():

@@ -9,11 +9,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, Field
 
-from fastcore.errors.exceptions import (
-    AppError,
-    NotFoundError,
-    ValidationError,
-)
+from fastcore.errors.exceptions import AppError, NotFoundError, ValidationError
 from fastcore.errors.handlers import (
     ErrorResponse,
     _handle_app_error,
@@ -68,19 +64,19 @@ class TestAppErrorHandler:
         # Create mock request
         request = MagicMock()
         request.url.path = "/api/test"
-        
+
         # Create error
         error = NotFoundError(message="User not found", detail={"user_id": 123})
-        
+
         # Mock settings with debug mode disabled
         with patch("fastcore.errors.handlers._get_settings") as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.API.DEBUG = False
             mock_get_settings.return_value = mock_settings
-            
+
             # Call handler
             response = _handle_app_error(request, error)
-            
+
             # Verify response
             assert response.status_code == HTTPStatus.NOT_FOUND.value
             response_body = response.body.decode()
@@ -94,19 +90,19 @@ class TestAppErrorHandler:
         # Create mock request
         request = MagicMock()
         request.url.path = "/api/test"
-        
+
         # Create error without detail
         error = AppError(message="Something went wrong")
-        
+
         # Mock settings with debug mode enabled
         with patch("fastcore.errors.handlers._get_settings") as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.API.DEBUG = True
             mock_get_settings.return_value = mock_settings
-            
+
             # Call handler
             response = _handle_app_error(request, error)
-            
+
             # Verify response includes traceback
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
             response_body = response.body.decode()
@@ -121,14 +117,16 @@ class TestHTTPExceptionHandler:
         # Create mock request
         request = MagicMock()
         request.url.path = "/api/test"
-        
+
         # Create error
         headers = {"X-Error-Code": "CUSTOM_ERROR"}
-        error = HTTPException(status_code=404, detail="Resource not found", headers=headers)
-        
+        error = HTTPException(
+            status_code=404, detail="Resource not found", headers=headers
+        )
+
         # Call handler
         response = _handle_http_exception(request, error)
-        
+
         # Verify response
         assert response.status_code == 404
         response_body = response.body.decode()
@@ -145,7 +143,7 @@ class TestValidationErrorHandler:
         # Create mock request
         request = MagicMock()
         request.url.path = "/api/test"
-        
+
         # Create validation error (simplified)
         error = RequestValidationError(
             errors=[
@@ -156,10 +154,10 @@ class TestValidationErrorHandler:
                 }
             ]
         )
-        
+
         # Call handler
         response = _handle_validation_error(request, error)
-        
+
         # Verify response
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         response_body = response.body.decode()
@@ -177,19 +175,19 @@ class TestPythonExceptionHandler:
         # Create mock request
         request = MagicMock()
         request.url.path = "/api/test"
-        
+
         # Create a Python exception
         error = ValueError("Invalid value")
-        
+
         # Mock settings with debug mode disabled
         with patch("fastcore.errors.handlers._get_settings") as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.API.DEBUG = False
             mock_get_settings.return_value = mock_settings
-            
+
             # Call handler
             response = _handle_python_exception(request, error)
-            
+
             # Verify response
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
             response_body = response.body.decode()
@@ -201,19 +199,19 @@ class TestPythonExceptionHandler:
         # Create mock request
         request = MagicMock()
         request.url.path = "/api/test"
-        
+
         # Create a Python exception
         error = ValueError("Invalid value")
-        
+
         # Mock settings with debug mode enabled
         with patch("fastcore.errors.handlers._get_settings") as mock_get_settings:
             mock_settings = MagicMock()
             mock_settings.API.DEBUG = True
             mock_get_settings.return_value = mock_settings
-            
+
             # Call handler
             response = _handle_python_exception(request, error)
-            
+
             # Verify response includes debug information
             assert response.status_code == HTTPStatus.INTERNAL_SERVER_ERROR.value
             response_body = response.body.decode()
@@ -230,13 +228,13 @@ class TestRegisterExceptionHandlers:
         """Test registration of exception handlers."""
         app = FastAPI()
         original_handlers_count = len(app.exception_handlers)
-        
+
         # Register handlers
         register_exception_handlers(app)
-        
+
         # Verify handlers were added
         assert len(app.exception_handlers) > original_handlers_count
-        
+
         # Check for handlers - FastAPI might use either starlette.exceptions.HTTPException
         # or fastapi.exceptions.HTTPException, so we need to check for both
         http_exception_registered = False
@@ -245,11 +243,19 @@ class TestRegisterExceptionHandlers:
                 http_exception_registered = True
                 break
         assert http_exception_registered, "No HTTP exception handler was registered"
-        
+
         # Check other handlers
-        assert any(issubclass(exc_type, RequestValidationError) for exc_type, _ in app.exception_handlers.items())
-        assert any(issubclass(exc_type, AppError) for exc_type, _ in app.exception_handlers.items())
-        assert any(exc_type == Exception for exc_type, _ in app.exception_handlers.items())
+        assert any(
+            issubclass(exc_type, RequestValidationError)
+            for exc_type, _ in app.exception_handlers.items()
+        )
+        assert any(
+            issubclass(exc_type, AppError)
+            for exc_type, _ in app.exception_handlers.items()
+        )
+        assert any(
+            exc_type == Exception for exc_type, _ in app.exception_handlers.items()
+        )
 
 
 class TestGetErrorResponses:
@@ -258,22 +264,24 @@ class TestGetErrorResponses:
     def test_get_error_responses_with_specified_exceptions(self):
         """Test generation of error responses for specified exceptions."""
         responses = get_error_responses(NotFoundError, ValidationError)
-        
+
         # Should include responses for specified exceptions
         assert HTTPStatus.NOT_FOUND.value in responses
         assert HTTPStatus.BAD_REQUEST.value in responses
-        
+
         # Should not include responses for unspecified exceptions
         assert HTTPStatus.UNAUTHORIZED.value not in responses
-        
+
         # Check response model and description
         assert responses[HTTPStatus.NOT_FOUND.value]["model"] == ErrorResponse
-        assert "not found" in responses[HTTPStatus.NOT_FOUND.value]["description"].lower()
+        assert (
+            "not found" in responses[HTTPStatus.NOT_FOUND.value]["description"].lower()
+        )
 
     def test_get_error_responses_with_no_exceptions(self):
         """Test generation of error responses with no specified exceptions."""
         responses = get_error_responses()
-        
+
         # Should include responses for common exceptions
         assert HTTPStatus.NOT_FOUND.value in responses
         assert HTTPStatus.BAD_REQUEST.value in responses
