@@ -47,6 +47,7 @@ def create_app(
     enable_i18n: bool = False,
     enable_trusted_hosts: bool = False,
     enable_timing: bool = False,
+    enable_monitoring: bool = False,
     cors_config: Optional[Union[CORSConfig, Dict[str, Any]]] = None,
     rate_limit_config: Optional[Union[RateLimitConfig, Dict[str, Any]]] = None,
     i18n_config: Optional[Union[I18nConfig, Dict[str, Any]]] = None,
@@ -73,6 +74,7 @@ def create_app(
         enable_i18n: Whether to enable internationalization middleware
         enable_trusted_hosts: Whether to enable trusted hosts middleware
         enable_timing: Whether to enable request timing middleware
+        enable_monitoring: Whether to enable monitoring features
         cors_config: Configuration for CORS middleware
         rate_limit_config: Configuration for rate limiting middleware
         i18n_config: Configuration for internationalization middleware
@@ -217,11 +219,18 @@ def create_app(
 
         logger.debug("Exception handlers registered")
 
-    # Add health check endpoint
-    @app.get("/health", tags=["system"])
-    def health_check():
-        logger.debug("Health check endpoint called")
-        return {"status": "ok", "environment": env}
+    # Add monitoring if enabled
+    if enable_monitoring:
+        from fastcore.monitoring.instrumentation import instrument_app
+
+        instrument_app(app)
+        logger.debug("Monitoring instrumentation enabled")
+    else:
+        # Add health check endpoint even if full monitoring is disabled
+        @app.get("/health", tags=["system"])
+        def health_check():
+            logger.debug("Health check endpoint called")
+            return {"status": "ok", "environment": env}
 
     # Log application startup
     logger.info(f"FastAPI application '{app.title}' configured successfully")
@@ -230,33 +239,22 @@ def create_app(
 
 
 def _configure_cache(settings: AppSettings) -> None:
-    """
-    Configure the cache system.
+    """Configure cache from settings."""
+    if hasattr(settings, "CACHE"):
+        try:
+            from fastcore.cache import configure_cache
 
-    Args:
-        settings: The application settings
-    """
-    cache_config = settings.CACHE
-
-    if cache_config.CACHE_TYPE == "redis":
-        # Configure Redis cache
-        configure_cache(
-            backend_type="redis",
-            host=cache_config.REDIS_HOST,
-            port=cache_config.REDIS_PORT,
-            db=cache_config.REDIS_DB,
-            password=cache_config.REDIS_PASSWORD,
-            prefix=cache_config.REDIS_PREFIX,
-        )
-    elif cache_config.CACHE_TYPE == "memory":
-        # Configure memory cache
-        configure_cache(
-            backend_type="memory",
-            max_size=cache_config.MEMORY_CACHE_MAX_SIZE,
-        )
-    elif cache_config.CACHE_TYPE == "null":
-        # Configure null cache (no-op)
-        configure_cache(backend_type="null")
+            cache_config = settings.CACHE
+            configure_cache(
+                cache_type=cache_config.CACHE_TYPE,
+                ttl=cache_config.DEFAULT_TTL,
+                max_size=cache_config.MAX_SIZE,
+                redis_url=cache_config.REDIS_URL
+                if hasattr(cache_config, "REDIS_URL")
+                else None,
+            )
+            logger.info(f"Cache configured with backend: {cache_config.CACHE_TYPE}")
+        except Exception as e:
+            logger.error(f"Failed to configure cache: {str(e)}")
     else:
-        # Use memory cache as fallback
-        configure_cache(backend_type="memory")
+        logger.debug("No cache configuration found in settings")
