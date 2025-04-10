@@ -7,6 +7,7 @@ from environment variables, files, and secrets directories.
 
 import json
 import os
+import re
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type, TypeVar, get_origin, get_type_hints
@@ -85,10 +86,20 @@ class BaseSettings:
         # Get configuration class (use class Config or fallback to BaseSettings.Config)
         config = getattr(cls, "Config", BaseSettings.Config)
 
-        # 1. Load from file first (lowest priority)
+        # 1. Load from standard env file first (lowest priority)
         env_file = getattr(config, "env_file", None)
         if env_file and os.path.exists(env_file):
             instance._load_from_file(env_file)
+
+        # 1b. If an environment is specified, load from environment-specific file if it exists
+        if env:
+            env_specific_file = (
+                f"{os.path.splitext(env_file)[0]}.{env.value}{os.path.splitext(env_file)[1]}"
+                if env_file
+                else f".env.{env.value}"
+            )
+            if os.path.exists(env_specific_file):
+                instance._load_from_file(env_specific_file)
 
         # 2. Load from secrets directory
         secrets_dir = getattr(config, "secrets_dir", None)
@@ -159,14 +170,34 @@ class BaseSettings:
         Load and apply settings from a configuration file.
 
         Args:
-            file_path: Path to the JSON configuration file to load
+            file_path: Path to the JSON or .env configuration file to load
 
-        Currently only supports JSON format. The method reads the file and sets
-        attributes on the instance that match keys in the JSON object.
+        Supports both JSON format and .env file format.
         """
-        if not file_path.endswith(".json"):
-            return
+        if file_path.endswith(".json"):
+            self._load_from_json_file(file_path)
+        elif file_path.endswith(".env") or ".env." in file_path:
+            self._load_from_dotenv_file(file_path)
+        else:
+            # Try to autodetect format
+            try:
+                with open(file_path, "r") as f:
+                    content = f.read().strip()
+                    if content.startswith("{"):
+                        self._load_from_json_file(file_path)
+                    else:
+                        self._load_from_dotenv_file(file_path)
+            except (IOError, UnicodeDecodeError):
+                # Silently fail if file doesn't exist or is invalid
+                pass
 
+    def _load_from_json_file(self, file_path: str) -> None:
+        """
+        Load and apply settings from a JSON configuration file.
+
+        Args:
+            file_path: Path to the JSON configuration file to load
+        """
         try:
             with open(file_path, "r") as f:
                 config_data = json.load(f)
@@ -177,6 +208,39 @@ class BaseSettings:
                     setattr(self, key, value)
         except (json.JSONDecodeError, IOError):
             # Silently fail if file doesn't exist or is invalid
+            pass
+
+    def _load_from_dotenv_file(self, file_path: str) -> None:
+        """
+        Load and apply settings from a .env configuration file.
+
+        Args:
+            file_path: Path to the .env configuration file to load
+        """
+        try:
+            with open(file_path, "r") as f:
+                for line in f:
+                    # Skip comments and empty lines
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+
+                    # Parse key-value pairs
+                    if "=" in line:
+                        key, value = line.split("=", 1)
+                        key = key.strip()
+                        value = value.strip()
+
+                        # Remove quotes if present
+                        if (value.startswith('"') and value.endswith('"')) or (
+                            value.startswith("'") and value.endswith("'")
+                        ):
+                            value = value[1:-1]
+
+                        # Set in environment for subsequent env var lookup
+                        os.environ[key] = value
+        except IOError:
+            # Silently fail if file doesn't exist
             pass
 
     def _load_from_secrets(self, secrets_dir: str) -> None:

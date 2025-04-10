@@ -9,7 +9,6 @@ from contextlib import asynccontextmanager
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from fastcore.cache.manager import configure_cache
@@ -31,6 +30,7 @@ from fastcore.middleware import (
     configure_timing,
     configure_trusted_hosts,
 )
+from fastcore.middleware.manager import configure_environment_middleware
 
 # Logger for this module
 logger = get_logger(__name__)
@@ -56,6 +56,9 @@ def create_app(
     middlewares: List[Dict[str, Any]] = None,
     exception_handler_overrides: Dict[Type[Exception], Callable] = None,
     db_echo: bool = False,
+    db_max_retries: int = 3,
+    db_retry_delay: int = 2,
+    auto_configure: bool = True,
 ) -> FastAPI:
     """
     Create and configure a FastAPI application with sensible defaults.
@@ -83,6 +86,9 @@ def create_app(
         middlewares: Additional middlewares to add
         exception_handler_overrides: Custom exception handlers to override defaults
         db_echo: Whether to echo SQL statements (only used when enable_database is True)
+        db_max_retries: Maximum number of database connection attempts
+        db_retry_delay: Delay in seconds between database connection attempts
+        auto_configure: Whether to automatically configure the app based on environment
 
     Returns:
         Configured FastAPI application
@@ -118,7 +124,7 @@ def create_app(
     # Configure logging if enabled
     if enable_logging:
         configure_logging(
-            settings=settings.LOGGING if hasattr(settings, "LOGGING") else None
+            settings=settings.LOGGING if hasattr(settings, "LOGGING") else None, env=env
         )
         logger.info(f"Application starting in {env} environment")
 
@@ -130,7 +136,10 @@ def create_app(
         if enable_database:
             logger.info("Initializing database connection")
             initialize_db(
-                settings=settings.DB if hasattr(settings, "DB") else None, echo=db_echo
+                settings=settings.DB if hasattr(settings, "DB") else None,
+                echo=db_echo,
+                max_retries=db_max_retries,
+                retry_delay=db_retry_delay,
             )
             logger.info("Database connection initialized successfully")
 
@@ -155,48 +164,64 @@ def create_app(
     # Register settings
     app.state.settings = settings
 
-    # Configure middleware (order is important)
+    # Auto-configure middleware based on environment if requested
+    if auto_configure:
+        configure_environment_middleware(
+            app=app,
+            env=env,
+            cors=cors_config,
+            rate_limit=rate_limit_config,
+            trusted_hosts=trusted_hosts_config,
+            timing=timing_config,
+            i18n=i18n_config,
+            enable_cors=enable_cors,
+            enable_rate_limiting=enable_rate_limiting,
+            enable_trusted_hosts=enable_trusted_hosts,
+            enable_timing=enable_timing,
+            enable_i18n=enable_i18n,
+        )
+    else:
+        # Configure middleware manually (order is important)
+        # 1. Trusted Hosts middleware should be first (validates incoming hosts)
+        if enable_trusted_hosts:
+            if isinstance(trusted_hosts_config, dict):
+                trusted_hosts_config = TrustedHostsConfig(**trusted_hosts_config)
+            configure_trusted_hosts(app, trusted_hosts_config)
+            logger.debug("Trusted hosts middleware configured")
 
-    # 1. Trusted Hosts middleware should be first (validates incoming hosts)
-    if enable_trusted_hosts:
-        if isinstance(trusted_hosts_config, dict):
-            trusted_hosts_config = TrustedHostsConfig(**trusted_hosts_config)
-        configure_trusted_hosts(app, trusted_hosts_config)
-        logger.debug("Trusted hosts middleware configured")
+        # 2. CORS middleware comes next
+        if enable_cors:
+            if cors_config:
+                # Use provided config
+                if isinstance(cors_config, dict):
+                    cors_config = CORSConfig(**cors_config)
+                configure_cors(app, cors_config)
+            else:
+                # Use default CORS configuration based on environment
+                default_origins = ["*"] if env == Environment.DEVELOPMENT else []
+                configure_cors(app, allow_origins=default_origins)
+            logger.debug("CORS middleware configured")
 
-    # 2. CORS middleware comes next
-    if enable_cors:
-        if cors_config:
-            # Use provided config
-            if isinstance(cors_config, dict):
-                cors_config = CORSConfig(**cors_config)
-            configure_cors(app, cors_config)
-        else:
-            # Use default CORS configuration based on environment
-            default_origins = ["*"] if env == Environment.DEVELOPMENT else []
-            configure_cors(app, allow_origins=default_origins)
-        logger.debug("CORS middleware configured")
+        # 3. Rate limiting middleware
+        if enable_rate_limiting:
+            if isinstance(rate_limit_config, dict):
+                rate_limit_config = RateLimitConfig(**rate_limit_config)
+            configure_rate_limiting(app, rate_limit_config)
+            logger.debug("Rate limiting middleware configured")
 
-    # 3. Rate limiting middleware
-    if enable_rate_limiting:
-        if isinstance(rate_limit_config, dict):
-            rate_limit_config = RateLimitConfig(**rate_limit_config)
-        configure_rate_limiting(app, rate_limit_config)
-        logger.debug("Rate limiting middleware configured")
+        # 4. i18n middleware
+        if enable_i18n:
+            if isinstance(i18n_config, dict):
+                i18n_config = I18nConfig(**i18n_config)
+            configure_i18n(app, i18n_config)
+            logger.debug("Internationalization middleware configured")
 
-    # 4. i18n middleware
-    if enable_i18n:
-        if isinstance(i18n_config, dict):
-            i18n_config = I18nConfig(**i18n_config)
-        configure_i18n(app, i18n_config)
-        logger.debug("Internationalization middleware configured")
-
-    # 5. Timing middleware
-    if enable_timing:
-        if isinstance(timing_config, dict):
-            timing_config = TimingConfig(**timing_config)
-        configure_timing(app, timing_config)
-        logger.debug("Request timing middleware configured")
+        # 5. Timing middleware
+        if enable_timing:
+            if isinstance(timing_config, dict):
+                timing_config = TimingConfig(**timing_config)
+            configure_timing(app, timing_config)
+            logger.debug("Request timing middleware configured")
 
     # Add custom middlewares
     if middlewares:

@@ -9,9 +9,10 @@ import logging
 import os
 import sys
 from enum import Enum
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Iterable, Optional, Union
 
 from fastcore.config.app import AppSettings, LoggingSettings
+from fastcore.config.base import Environment
 
 # Type alias for Python's standard logger
 Logger = logging.Logger
@@ -60,22 +61,67 @@ class LogLevel(str, Enum):
         return level_map.get(level, logging.INFO)
 
 
+def get_default_log_level(env: Environment) -> str:
+    """
+    Get the default log level for a specific environment.
+
+    Args:
+        env: The application environment
+
+    Returns:
+        The default log level for the environment
+    """
+    if env == Environment.DEVELOPMENT:
+        return LogLevel.DEBUG
+    elif env == Environment.TESTING:
+        return LogLevel.DEBUG
+    elif env == Environment.STAGING:
+        return LogLevel.INFO
+    elif env == Environment.PRODUCTION:
+        return LogLevel.WARNING
+    else:
+        return LogLevel.INFO
+
+
+def get_default_log_format(env: Environment) -> str:
+    """
+    Get the default log format for a specific environment.
+
+    Args:
+        env: The application environment
+
+    Returns:
+        The default log format string for the environment
+    """
+    if env in (Environment.DEVELOPMENT, Environment.TESTING):
+        # More verbose format for development and testing
+        return "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d - %(message)s"
+    else:
+        # More concise format for production environments
+        return "%(asctime)s | %(levelname)-8s | %(name)s - %(message)s"
+
+
 def configure_logging(
     settings: Optional[LoggingSettings] = None,
     log_file: Optional[str] = None,
     log_level: Optional[Union[str, LogLevel]] = None,
     log_format: Optional[str] = None,
+    env: Optional[Environment] = None,
+    modules_to_silence: Optional[Iterable[str]] = None,
 ) -> None:
     """
     Configure the Python logging system for FastAPI applications.
 
     This function sets up both console and file logging (if a file path is provided).
+    It automatically adjusts logging behavior based on the environment.
 
     Args:
         settings: Optional logging settings to use instead of deriving from app settings
         log_file: Optional path to a log file, overrides settings if provided
         log_level: Optional log level, overrides settings if provided
         log_format: Optional log format string, overrides settings if provided
+        env: Optional environment to use for default settings
+        modules_to_silence: Optional list of module names to set to a higher log level (WARNING)
 
     Example:
         ```python
@@ -84,22 +130,42 @@ def configure_logging(
 
         # Configure with custom parameters
         configure_logging(log_level="DEBUG", log_file="/path/to/app.log")
+
+        # Configure with environment-specific defaults
+        configure_logging(env=Environment.PRODUCTION)
         ```
     """
+    # Determine the environment if not provided
+    if env is None:
+        env_name = os.environ.get("APP_ENVIRONMENT", "development")
+        try:
+            env = Environment(env_name.lower())
+        except ValueError:
+            env = Environment.DEVELOPMENT
+
     # Get settings if not provided
     if settings is None:
-        app_settings = AppSettings.load()
-        settings = app_settings.LOGGING
+        try:
+            app_settings = AppSettings.load(env)
+            settings = app_settings.LOGGING
+        except Exception:
+            # Create default settings if app settings can't be loaded
+            settings = LoggingSettings()
 
-    # Get log level
+    # Get log level with environment-specific default if not set
     level_str = log_level or settings.LEVEL
+    if not level_str or level_str == "":
+        level_str = get_default_log_level(env)
+
     if isinstance(level_str, LogLevel):
         level = LogLevel.from_string(level_str)
     else:
         level = LogLevel.from_string(level_str)
 
-    # Get log format
+    # Get log format with environment-specific default if not set
     format_str = log_format or settings.FORMAT
+    if not format_str or format_str == "":
+        format_str = get_default_log_format(env)
 
     # Get log file path
     file_path = log_file or settings.FILE_PATH
@@ -132,6 +198,24 @@ def configure_logging(
         file_handler.setFormatter(formatter)
         file_handler.setLevel(level)
         root_logger.addHandler(file_handler)
+
+    # Silence specific modules if requested
+    if modules_to_silence:
+        for module_name in modules_to_silence:
+            logging.getLogger(module_name).setLevel(logging.WARNING)
+
+    # Set reasonable defaults for common third-party libraries
+    if env == Environment.PRODUCTION:
+        # Silence noisy libraries in production
+        for module in ["uvicorn", "uvicorn.access", "sqlalchemy.engine", "alembic"]:
+            logging.getLogger(module).setLevel(logging.WARNING)
+
+    # Get a logger for this module to log configuration status
+    logger = logging.getLogger(__name__)
+    logger.info(f"Logging configured for environment: {env}")
+    logger.debug(f"Log level: {level_str}, Format: {format_str}")
+    if file_path:
+        logger.debug(f"Log file: {file_path}")
 
 
 def get_logger(name: str) -> Logger:
