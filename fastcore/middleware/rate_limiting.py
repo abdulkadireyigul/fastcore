@@ -39,7 +39,7 @@ class RateLimitConfig(BaseModel):
         default=[], description="List of paths to exclude from rate limiting"
     )
 
-    @validator("window_seconds", "block_duration_seconds")
+    @validator("window_seconds", "block_duration_seconds", allow_reuse=True)
     def validate_positive(cls, v):
         """Ensure time values are positive."""
         if v <= 0:

@@ -27,6 +27,8 @@ from fastcore.logging import (
     configure_logging,
     get_logger,
 )
+from fastcore.logging.logger import _loggers  # Import the logger cache
+from fastcore.logging.logger import get_default_log_format, get_default_log_level
 
 
 class TestLogLevel:
@@ -49,6 +51,15 @@ class TestLogLevel:
         assert LogLevel.from_string(LogLevel.CRITICAL) == logging.CRITICAL
         # Test default case
         assert LogLevel.from_string("INVALID") == logging.INFO
+
+    def test_log_level_from_string(self):
+        """Additional test for LogLevel.from_string."""
+        assert LogLevel.from_string("DEBUG") == logging.DEBUG
+        assert LogLevel.from_string("INFO") == logging.INFO
+        assert LogLevel.from_string("WARNING") == logging.WARNING
+        assert LogLevel.from_string("ERROR") == logging.ERROR
+        assert LogLevel.from_string("CRITICAL") == logging.CRITICAL
+        assert LogLevel.from_string("INVALID") == logging.INFO  # Default fallback
 
 
 class TestConfigureLogging:
@@ -148,6 +159,23 @@ class TestConfigureLogging:
                     # We can just log this rather than failing the test
                     print(f"Warning: Could not delete temporary file {log_path}")
 
+    @patch("fastcore.logging.logger.logging")
+    def test_configure_logging(self, mock_logging):
+        """Additional test for configure_logging."""
+        mock_env = Environment.DEVELOPMENT
+        mock_settings = MagicMock()
+        mock_settings.LEVEL = "DEBUG"
+        mock_settings.FORMAT = "%(message)s"
+        mock_settings.FILE_PATH = None
+
+        # Use the actual logging.DEBUG value instead of a mocked one
+        with patch("fastcore.logging.logger.logging.DEBUG", logging.DEBUG):
+            configure_logging(settings=mock_settings, env=mock_env)
+
+        mock_logging.getLogger.assert_called()
+        root_logger = mock_logging.getLogger()
+        root_logger.setLevel.assert_called_with(logging.DEBUG)
+
 
 class TestGetLogger:
     """Tests for the get_logger function."""
@@ -178,6 +206,20 @@ class TestGetLogger:
         logger1 = get_logger("test_module")
         logger2 = get_logger("test_module")
         assert logger1 is logger2  # Should be the same instance
+
+    @patch("fastcore.logging.logger._loggers", new_callable=dict)
+    def test_get_logger(self, mock_loggers):
+        """Additional test for get_logger."""
+        logger_name = "test_logger"
+        logger = get_logger(logger_name)
+
+        # Ensure the logger is added to the mocked _loggers dictionary
+        assert logger_name in mock_loggers
+        assert mock_loggers[logger_name] is logger
+
+        # Ensure cached logger is returned
+        cached_logger = get_logger(logger_name)
+        assert cached_logger is logger
 
 
 class TestJsonFormatter:
@@ -375,3 +417,28 @@ class TestAppFactoryIntegration:
 
         # Clean up
         test_logger.removeHandler(handler)
+
+
+class TestDefaultLogSettings:
+    """Tests for default log settings."""
+
+    def test_get_default_log_level(self):
+        """Test default log level based on environment."""
+        assert get_default_log_level(Environment.DEVELOPMENT) == LogLevel.DEBUG
+        assert get_default_log_level(Environment.TESTING) == LogLevel.DEBUG
+        assert get_default_log_level(Environment.STAGING) == LogLevel.INFO
+        assert get_default_log_level(Environment.PRODUCTION) == LogLevel.WARNING
+
+    def test_get_default_log_format(self):
+        """Test default log format based on environment."""
+        dev_format = get_default_log_format(Environment.DEVELOPMENT)
+        prod_format = get_default_log_format(Environment.PRODUCTION)
+
+        assert "%(asctime)s" in dev_format
+        assert "%(levelname)-8s" in dev_format
+        assert "%(name)s:%(lineno)d" in dev_format
+
+        assert "%(asctime)s" in prod_format
+        assert "%(levelname)-8s" in prod_format
+        assert "%(name)s" in prod_format
+        assert ":%(lineno)d" not in prod_format

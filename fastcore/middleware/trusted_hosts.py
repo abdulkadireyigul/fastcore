@@ -35,7 +35,7 @@ class TrustedHostsConfig(BaseModel):
         default=False, description="Whether to redirect from 'http://' to 'https://'."
     )
 
-    @validator("allowed_hosts")
+    @validator("allowed_hosts", allow_reuse=True)
     def validate_allowed_hosts(cls, hosts):
         """Validate the allowed hosts configuration."""
         # Check if wildcard is used correctly
