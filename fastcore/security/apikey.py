@@ -7,7 +7,7 @@ in FastAPI applications.
 
 import secrets
 import uuid
-from datetime import UTC, datetime, timedelta  # Added UTC import
+from datetime import UTC, datetime, timedelta
 from typing import Dict, List, Optional, Union
 
 from fastapi import Depends, Header, HTTPException, Security, status
@@ -41,9 +41,7 @@ class APIKey(BaseModel):
     name: str
     enabled: bool = True
     expires_at: Optional[datetime] = None
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC)
-    )  # Updated to use UTC
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     last_used_at: Optional[datetime] = None
     permissions: List[str] = Field(default_factory=list)
     metadata: Dict = Field(default_factory=dict)
@@ -53,11 +51,11 @@ class APIKey(BaseModel):
         """Check if this API key has expired."""
         if self.expires_at is None:
             return False
-        return datetime.now(UTC) > self.expires_at  # Updated to use UTC
+        return datetime.now(UTC) > self.expires_at
 
     def update_last_used(self) -> None:
         """Update the last used timestamp to the current time."""
-        self.last_used_at = datetime.now(UTC)  # Updated to use UTC
+        self.last_used_at = datetime.now(UTC)
 
     def has_permission(self, permission: str) -> bool:
         """

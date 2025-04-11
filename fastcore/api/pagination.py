@@ -11,6 +11,14 @@ from typing import Any, Dict, Generic, List, Optional, Sequence, Type, TypeVar, 
 from fastapi import Query
 from pydantic import BaseModel, ConfigDict, create_model
 
+from fastcore.api.responses import (
+    BaseResponse,
+    FilterInfo,
+    ListMetadata,
+    ListResponse,
+    SortInfo,
+)
+
 T = TypeVar("T")
 
 
@@ -24,6 +32,8 @@ class PaginationParams:
     Attributes:
         page: Page number (1-indexed)
         size: Number of items per page
+        offset: Optional offset to override page-based pagination
+        limit: Optional limit to override size-based pagination
 
     Example:
         ```python
@@ -40,6 +50,12 @@ class PaginationParams:
         self,
         page: int = Query(1, ge=1, description="Page number (1-indexed)"),
         size: int = Query(20, ge=1, le=100, description="Number of items per page"),
+        offset: Optional[int] = Query(
+            None, ge=0, description="Optional offset override"
+        ),
+        limit: Optional[int] = Query(
+            None, ge=1, le=100, description="Optional limit override"
+        ),
     ):
         """
         Initialize pagination parameters.
@@ -47,10 +63,14 @@ class PaginationParams:
         Args:
             page: Page number (1-indexed)
             size: Number of items per page
+            offset: Optional offset to override page-based pagination
+            limit: Optional limit to override size-based pagination
         """
         # Handle both raw values and Query objects
         self.page = page.default if hasattr(page, "default") else page
         self.size = size.default if hasattr(size, "default") else size
+        self.offset = offset.default if hasattr(offset, "default") else offset
+        self.limit = limit.default if hasattr(limit, "default") else limit
 
     def get_skip(self) -> int:
         """
@@ -59,6 +79,8 @@ class PaginationParams:
         Returns:
             Number of items to skip for the current page
         """
+        if self.offset is not None:
+            return self.offset
         return (self.page - 1) * self.size
 
     def get_limit(self) -> int:
@@ -68,168 +90,117 @@ class PaginationParams:
         Returns:
             Number of items per page
         """
-        return self.size
+        return self.limit if self.limit is not None else self.size
 
     def to_dict(self) -> Dict[str, int]:
         """
         Convert pagination parameters to a dictionary.
 
         Returns:
-            Dictionary with page and size keys
+            Dictionary with pagination parameters
         """
-        return {"page": self.page, "size": self.size}
+        result = {"page": self.page, "size": self.size}
+        if self.offset is not None:
+            result["offset"] = self.offset
+        if self.limit is not None:
+            result["limit"] = self.limit
+        return result
 
-
-class PageInfo(BaseModel):
-    """
-    Pagination metadata for paginated responses.
-
-    This class provides information about the current page, total pages,
-    and total items in a paginated response.
-
-    Attributes:
-        page: Current page number
-        size: Number of items per page
-        total_pages: Total number of pages
-        total_items: Total number of items
-        has_next: Whether there is a next page
-        has_previous: Whether there is a previous page
-    """
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    page: int
-    size: int
-    total_pages: int
-    total_items: int
-    has_next: bool
-    has_previous: bool
-
-    @classmethod
-    def from_parameters(cls, params: PaginationParams, total_items: int) -> "PageInfo":
+    def to_metadata(
+        self,
+        total_items: int,
+        filtered_count: Optional[int] = None,
+    ) -> ListMetadata:
         """
-        Create page info from pagination parameters and total item count.
+        Convert pagination parameters to ListMetadata.
 
         Args:
-            params: Pagination parameters
-            total_items: Total number of items
+            total_items: Total number of items across all pages
+            filtered_count: Number of items after filtering
 
         Returns:
-            PageInfo instance
+            ListMetadata instance with pagination information
         """
-        total_pages = ceil(total_items / params.size) if total_items > 0 else 0
+        # Use filtered count for pagination calculations if provided
+        count = filtered_count if filtered_count is not None else total_items
+        total_pages = ceil(count / self.size) if count > 0 else 0
 
-        return cls(
-            page=params.page,
-            size=params.size,
+        return ListMetadata(
+            total_count=total_items,
+            filtered_count=filtered_count or total_items,
+            offset=self.get_skip(),
+            limit=self.get_limit(),
+            page=self.page,
+            page_size=self.size,
             total_pages=total_pages,
-            total_items=total_items,
-            has_next=params.page < total_pages,
-            has_previous=params.page > 1,
+            has_next=self.page < total_pages,
+            has_previous=self.page > 1,
         )
 
 
-class Page(BaseModel, Generic[T]):
+def paginate(
+    items: List[Any],
+    params: PaginationParams,
+    total_items: int,
+    filtered_count: Optional[int] = None,
+    applied_filters: Optional[List[Any]] = None,
+    applied_sorting: Optional[List[Any]] = None,
+    aggregations: Optional[Dict[str, Any]] = None,
+    message: Optional[str] = None,
+) -> ListResponse:
     """
-    Paginated response containing items and pagination metadata.
-
-    This generic model wraps a list of items with pagination information.
-
-    Attributes:
-        items: List of items on the current page
-        page_info: Pagination metadata
-
-    Example:
-        ```python
-        @app.get("/items/", response_model=Page[Item])
-        def get_items(pagination: PaginationParams = Depends()):
-            skip = pagination.get_skip()
-            limit = pagination.size
-
-            # Get items for the current page
-            items = db.query(Item).offset(skip).limit(limit).all()
-
-            # Get total count for pagination metadata
-            total = db.query(Item).count()
-
-            # Create paginated response
-            return paginate(items, pagination, total)
-        ```
-    """
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    items: List[T]
-    page_info: PageInfo
-
-
-def paginate(items: Sequence[T], params: PaginationParams, total_items: int) -> Page[T]:
-    """
-    Create a paginated response from a sequence of items.
+    Create a paginated response with metadata.
 
     Args:
-        items: Sequence of items for the current page
+        items: List of items for the current page
         params: Pagination parameters
-        total_items: Total number of items across all pages
+        total_items: Total number of items (before filtering)
+        filtered_count: Number of items after filtering
+        applied_filters: List of applied filters
+        applied_sorting: List of applied sorts
+        aggregations: Optional aggregation results
+        message: Optional response message
 
     Returns:
-        Page object containing items and pagination metadata
-
-    Example:
-        ```python
-        @app.get("/items/")
-        def get_items(pagination: PaginationParams = Depends()):
-            # Get items for the current page
-            items = db.query(Item).offset(pagination.get_skip()).limit(pagination.size).all()
-
-            # Get total count
-            total = db.query(Item).count()
-
-            # Return paginated response
-            return paginate(items, pagination, total)
-        ```
+        ListResponse containing the items and metadata
     """
-    page_info = PageInfo.from_parameters(params, total_items)
-    return Page[Any](items=list(items), page_info=page_info)
+    # Convert filter conditions to FilterInfo
+    filter_info: List[FilterInfo] = []
+    if applied_filters:
+        for f in applied_filters:
+            if isinstance(f, dict):
+                filter_info.append(FilterInfo(**f))
+            elif hasattr(f, "to_dict"):
+                filter_info.append(FilterInfo(**f.to_dict()))
+            else:
+                filter_info.append(f)
 
+    # Convert sort fields to SortInfo
+    sort_info: List[SortInfo] = []
+    if applied_sorting:
+        for s in applied_sorting:
+            if isinstance(s, dict):
+                sort_info.append(SortInfo(**s))
+            elif hasattr(s, "to_dict"):
+                sort_info.append(SortInfo(**s.to_dict()))
+            else:
+                sort_info.append(s)
 
-def get_paginated_response_model(item_model: Type[BaseModel]) -> Type[BaseModel]:
-    """
-    Create a typed paginated response model for a specific item type.
-
-    This function creates a Pydantic model that represents a paginated response
-    for a specific item type, which can be used as a response_model in FastAPI routes.
-
-    Args:
-        item_model: Pydantic model for the items in the response
-
-    Returns:
-        Pydantic model for a paginated response of the specified item type
-
-    Example:
-        ```python
-        class ItemResponse(BaseModel):
-            id: int
-            name: str
-
-        # Create a paginated response model for ItemResponse
-        PaginatedItems = get_paginated_response_model(ItemResponse)
-
-        @app.get("/items/", response_model=PaginatedItems)
-        def get_items(pagination: PaginationParams = Depends()):
-            # Function implementation
-            pass
-        ```
-    """
-    model = create_model(
-        f"Page{item_model.__name__}",
-        items=(List[item_model], ...),
-        page_info=(PageInfo, ...),
-        __base__=Page,  # Use Page class directly as base
+    metadata = params.to_metadata(
+        total_items=total_items, filtered_count=filtered_count or total_items
     )
 
-    # Add model_fields property for compatibility with both Pydantic v1 and v2
-    if not hasattr(model, "model_fields"):
-        model.model_fields = getattr(model, "__fields__", {})
+    return ListResponse(
+        success=True,
+        data=items,
+        message=message or "Items retrieved successfully",
+        list_metadata=metadata,
+        applied_filters=filter_info,
+        applied_sorting=sort_info,
+        aggregations=aggregations,
+    )
 
-    return model
+
+# Backward compatibility
+Page = ListResponse
+PageInfo = ListMetadata

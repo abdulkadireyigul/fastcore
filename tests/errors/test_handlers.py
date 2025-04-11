@@ -13,7 +13,7 @@ from fastcore.errors.exceptions import AppError, NotFoundError, ValidationError
 from fastcore.errors.handlers import (
     ErrorResponse,
     _handle_app_error,
-    _handle_http_exception,
+    _handle_http_error,
     _handle_python_exception,
     _handle_validation_error,
     get_error_responses,
@@ -112,7 +112,7 @@ class TestAppErrorHandler:
 class TestHTTPExceptionHandler:
     """Tests for handling FastAPI's HTTPException."""
 
-    def test_handle_http_exception(self):
+    def test_handle_http_error(self):
         """Test handling of HTTPException."""
         # Create mock request
         request = MagicMock()
@@ -125,7 +125,7 @@ class TestHTTPExceptionHandler:
         )
 
         # Call handler
-        response = _handle_http_exception(request, error)
+        response = _handle_http_error(request, error)
 
         # Verify response
         assert response.status_code == 404

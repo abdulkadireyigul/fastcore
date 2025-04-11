@@ -16,6 +16,14 @@ from sqlalchemy.orm import Query as SQLAQuery
 T = TypeVar("T")
 
 
+class FilterInfo(BaseModel):
+    """Information about an applied filter."""
+
+    field: str
+    operator: str
+    value: Optional[Any] = None
+
+
 class FilterOperator(str, Enum):
     """
     Filter operators for field comparisons.

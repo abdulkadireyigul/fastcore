@@ -8,7 +8,7 @@ which are essential for monitoring application health and readiness.
 import asyncio
 import inspect
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Set, Union
 
@@ -154,7 +154,7 @@ class HealthResponse(BaseModel):
     """Overall health response model."""
 
     status: HealthStatus
-    timestamp: datetime = Field(default_factory=datetime.now)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
     checks: List[HealthCheckResult]
     version: Optional[str] = None
 

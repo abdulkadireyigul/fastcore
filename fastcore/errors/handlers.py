@@ -1,21 +1,23 @@
 """
-Exception handlers for FastAPI applications.
+Error handling utilities for FastAPI applications.
 
-This module provides utilities to register exception handlers with FastAPI
-applications and generate standardized error responses.
+This module provides standardized error handling, including custom exceptions,
+error response models, and exception handlers for FastAPI applications.
 """
 
 import traceback
 from http import HTTPStatus
-from typing import Any, Dict, List, Optional, Type, Union, get_type_hints
+from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import HTTPException, RequestValidationError
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field, ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from fastcore.config.app import AppSettings, Environment
+from fastcore.api.responses import create_response
 from fastcore.errors.exceptions import (
     AppError,
     AuthenticationError,
@@ -23,239 +25,250 @@ from fastcore.errors.exceptions import (
     ConflictError,
     DatabaseError,
     NotFoundError,
-    ValidationError,
 )
+from fastcore.errors.exceptions import ValidationError as AppValidationError
+from fastcore.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+class ErrorDetail(BaseModel):
+    """Detailed error information."""
+
+    code: str
+    message: str
+    field: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
 
 
 class ErrorResponse(BaseModel):
-    """
-    Standard error response model for API errors.
+    """Model for error responses."""
 
-    This model defines the structure of error responses returned by
-    the API when exceptions occur.
+    success: bool = False
+    message: str
+    errors: List[ErrorDetail] = []
+    status: int
+    code: str
+    detail: Optional[Dict[str, Any]] = None
+    path: str
 
-    Attributes:
-        status: HTTP status code
-        code: Error code (matches the HTTP status code by default)
-        message: Human-readable error message
-        detail: Additional details about the error (optional)
-        path: URL path where the error occurred
-    """
-
-    model_config = ConfigDict(populate_by_name=True)
-
-    status: int = Field(description="HTTP status code")
-    code: str = Field(description="Error code")
-    message: str = Field(description="Human-readable error message")
-    detail: Optional[Union[Dict[str, Any], List[Dict[str, Any]], str]] = Field(
-        None, description="Additional error details"
-    )
-    path: str = Field(description="URL path where the error occurred")
-
-    def model_dump(self) -> Dict[str, Any]:
-        """
-        Convert model to dictionary, supporting both Pydantic v1 and v2.
-
-        Returns:
-            Dictionary representation of the model
-        """
-        # Support both Pydantic v1 and v2
-        result = {}
+    def dict(self, *args, **kwargs):
+        """Backward compatibility with Pydantic v1."""
         if hasattr(super(), "model_dump"):
-            result = super().model_dump(exclude={"model_config"})
-        elif hasattr(super(), "dict"):
-            result = super().dict(exclude={"model_config"})  # type: ignore
+            return super().model_dump(*args, **kwargs)
+        return super().dict(*args, **kwargs)
+
+    def model_dump(self, *args, **kwargs):
+        """Forward compatibility with Pydantic v2."""
+        if hasattr(super(), "dict"):
+            return super().dict(*args, **kwargs)
+        return super().model_dump(*args, **kwargs)
+
+
+def _get_settings(request: Request):
+    """Get application settings from request state."""
+    if not hasattr(request.app.state, "settings"):
+        return None
+    return request.app.state.settings
+
+
+def _create_error_response(
+    status_code: int,
+    code: str,
+    message: str,
+    detail: Any = None,
+    path: str = "",
+) -> ErrorResponse:
+    """Create a standardized error response."""
+    error = ErrorDetail(
+        code=code,
+        message=message,
+        details={"path": path} if path else None,
+    )
+
+    if detail:
+        if isinstance(detail, dict):
+            error.details = {**error.details, **detail} if error.details else detail
+        elif isinstance(detail, list):
+            error.details = {"errors": detail}
         else:
-            # Fallback implementation
-            result = {
-                "status": self.status,
-                "code": self.code,
-                "message": self.message,
-                "detail": self.detail,
-                "path": self.path,
-            }
+            error.details = {"detail": str(detail)}
 
-        # Ensure model_config isn't included
-        if "model_config" in result:
-            del result["model_config"]
-
-        return result
-
-
-def _get_settings() -> AppSettings:
-    """
-    Get application settings.
-
-    Returns:
-        Application settings based on the current environment
-    """
-    # Try to detect environment or default to development
-    env_name = "development"
-    try:
-        import os
-
-        env_name = os.environ.get("APP_ENVIRONMENT", "development")
-        env = Environment(env_name.lower())
-    except ValueError:
-        env = Environment.DEVELOPMENT
-
-    return AppSettings.load(env)
+    return ErrorResponse(
+        success=False,
+        errors=[error],
+        message=message,
+        status=status_code,
+        code=code,
+        detail=error.details,
+        path=path,
+    )
 
 
 def _handle_app_error(request: Request, exc: AppError) -> JSONResponse:
-    """
-    Handle application-specific exceptions.
+    """Handle application-specific errors."""
+    settings = _get_settings(request)
+    debug_mode = settings and getattr(settings.API, "DEBUG", False)
 
-    Args:
-        request: FastAPI request object
-        exc: Application exception
+    details = {"path": request.url.path}
+    if hasattr(exc, "detail") and exc.detail:
+        details.update(
+            exc.detail if isinstance(exc.detail, dict) else {"detail": exc.detail}
+        )
 
-    Returns:
-        JSON response with error details
-    """
-    settings = _get_settings()
+    if debug_mode:
+        details["traceback"] = "".join(traceback.format_tb(exc.__traceback__))
 
-    # Include traceback in development mode
-    detail = exc.detail
-    if settings.API.DEBUG and not detail:
-        detail = {"traceback": traceback.format_exc()}
+    # Special handling for NotFoundError
+    if isinstance(exc, NotFoundError):
+        code = "NOT_FOUND"
+    else:
+        code = exc.__class__.__name__.replace("Error", "").upper()
 
-    # Create error response
-    error_response = ErrorResponse(
-        status=exc.status_code.value,
-        code=exc.status_code.name,
-        message=exc.message,
-        detail=detail,
-        path=request.url.path,
-    )
-
-    # Return JSON response with appropriate status code and headers
-    return JSONResponse(
+    error_response = _create_error_response(
         status_code=exc.status_code.value,
-        content=jsonable_encoder(error_response.model_dump()),
-        headers=exc.headers,
-    )
-
-
-def _handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
-    """
-    Handle FastAPI's HTTPException.
-
-    Args:
-        request: FastAPI request object
-        exc: HTTP exception
-
-    Returns:
-        JSON response with error details
-    """
-    status_code = exc.status_code
-    try:
-        http_status = HTTPStatus(status_code)
-        error_code = http_status.name
-    except ValueError:
-        error_code = f"HTTP_{status_code}"
-
-    # Create error response
-    error_response = ErrorResponse(
-        status=status_code,
-        code=error_code,
-        message=exc.detail,
+        code=code,
+        message=str(exc),
+        detail=details,
         path=request.url.path,
     )
 
-    # Return JSON response with appropriate status code and headers
-    return JSONResponse(
-        status_code=status_code,
-        content=jsonable_encoder(error_response.model_dump()),
-        headers=exc.headers,
+    return create_response(
+        success=False,
+        errors=jsonable_encoder(error_response.errors),
+        message=str(exc),
+        status_code=exc.status_code.value,
     )
 
 
 def _handle_validation_error(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
-    """
-    Handle FastAPI's RequestValidationError.
-
-    This handler formats Pydantic validation errors in a consistent way.
-
-    Args:
-        request: FastAPI request object
-        exc: Validation exception
-
-    Returns:
-        JSON response with validation error details
-    """
-    # Format validation errors
+    """Handle request validation errors."""
     errors = []
     for error in exc.errors():
-        error_dict = {
-            "loc": " -> ".join([str(loc) for loc in error["loc"]]),
-            "msg": error["msg"],
-            "type": error["type"],
-        }
-        errors.append(error_dict)
+        loc = error["loc"]
+        field = " -> ".join(str(x) for x in loc)
+        error_detail = ErrorDetail(
+            code="UNPROCESSABLE_ENTITY",
+            message=error["msg"],
+            field=field,
+            details=error,
+        )
+        errors.append(error_detail)
 
-    # Create error response
-    error_response = ErrorResponse(
-        status=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        code=HTTPStatus.UNPROCESSABLE_ENTITY.name,
+    return create_response(
+        success=False,
+        errors=jsonable_encoder(errors),
         message="Request validation error",
-        detail=errors,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+    )
+
+
+def _handle_http_error(
+    request: Request, exc: Union[StarletteHTTPException, FastAPIHTTPException]
+) -> JSONResponse:
+    """Handle HTTP exceptions."""
+    code = "NOT_FOUND" if exc.status_code == 404 else f"HTTP_{exc.status_code}"
+    error_response = _create_error_response(
+        status_code=exc.status_code,
+        code=code,
+        message=str(exc.detail),
         path=request.url.path,
     )
 
-    # Return JSON response with appropriate status code
-    return JSONResponse(
+    response = create_response(
+        success=False,
+        errors=jsonable_encoder(
+            [
+                {
+                    "code": code,
+                    "message": str(exc.detail),
+                    "details": {"path": request.url.path},
+                }
+            ]
+        ),
+        message=str(exc.detail),
+        status_code=exc.status_code,
+    )
+
+    # Add any custom headers from the exception
+    if hasattr(exc, "headers") and exc.headers:
+        response.headers.update(exc.headers)
+
+    return response
+
+
+def _handle_pydantic_error(request: Request, exc: ValidationError) -> JSONResponse:
+    """Handle Pydantic validation errors."""
+    errors = []
+    for error in exc.errors():
+        loc = error["loc"]
+        field = " -> ".join(str(x) for x in loc)
+        error_detail = ErrorDetail(
+            code="UNPROCESSABLE_ENTITY",
+            message=error["msg"],
+            field=field,
+            details=error,
+        )
+        errors.append(error_detail)
+
+    return create_response(
+        success=False,
+        errors=jsonable_encoder(errors),
+        message="Data validation failed",
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=jsonable_encoder(error_response.model_dump()),
     )
 
 
 def _handle_python_exception(request: Request, exc: Exception) -> JSONResponse:
-    """
-    Handle unhandled Python exceptions.
+    """Handle general Python exceptions."""
+    # Get exception details
+    exc_type = exc.__class__.__name__
+    exc_message = str(exc)
+    exc_traceback = "".join(traceback.format_tb(exc.__traceback__))
 
-    This is a catch-all handler for exceptions that don't have specific handlers.
+    # Log the error
+    logger.error(
+        f"Unhandled {exc_type} at {request.url.path}: {exc_message}\n{exc_traceback}"
+    )
 
-    Args:
-        request: FastAPI request object
-        exc: Python exception
+    # Create error details
+    details = {
+        "type": exc_type,
+        "message": exc_message,
+        "path": request.url.path,
+    }
 
-    Returns:
-        JSON response with error details
-    """
-    settings = _get_settings()
+    # Add traceback in debug mode
+    settings = _get_settings(request)
+    if settings and getattr(settings.API, "DEBUG", False):
+        details["traceback"] = exc_traceback
 
-    # Determine error details
-    detail = None
-    if settings.API.DEBUG:
-        detail = {
-            "type": type(exc).__name__,
-            "traceback": traceback.format_exc(),
-        }
-
-    # Create error response
-    error_response = ErrorResponse(
-        status=HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        code=HTTPStatus.INTERNAL_SERVER_ERROR.name,
+    # Create the error response
+    error_response = _create_error_response(
+        status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
+        code="INTERNAL_SERVER_ERROR",
         message="Internal server error",
-        detail=detail,
+        detail=details,
         path=request.url.path,
     )
 
-    # Return JSON response with 500 status code
-    return JSONResponse(
+    return create_response(
+        success=False,
+        errors=jsonable_encoder(error_response.errors),
+        message="Internal server error",
         status_code=HTTPStatus.INTERNAL_SERVER_ERROR.value,
-        content=jsonable_encoder(error_response.model_dump()),
     )
 
 
-# Dictionary mapping exception types to handler functions
-exception_handlers = {
+# Dictionary mapping exception types to their handlers
+exception_handlers: Dict[Type[Exception], Callable] = {
     AppError: _handle_app_error,
-    HTTPException: _handle_http_exception,
+    StarletteHTTPException: _handle_http_error,
+    FastAPIHTTPException: _handle_http_error,
     RequestValidationError: _handle_validation_error,
+    ValidationError: _handle_pydantic_error,
     Exception: _handle_python_exception,
 }
 
@@ -282,6 +295,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     # Register all handlers from the exception_handlers dictionary
     for exc_class, handler in exception_handlers.items():
         app.add_exception_handler(exc_class, handler)
+
+    # Log registration
+    logger.info("Registered exception handlers")
 
 
 def get_error_responses(
@@ -315,7 +331,7 @@ def get_error_responses(
     # If no exceptions specified, include general error responses
     if not exception_classes:
         exception_classes = (
-            ValidationError,
+            AppValidationError,
             NotFoundError,
             AuthenticationError,
             AuthorizationError,

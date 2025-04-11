@@ -450,15 +450,15 @@ def create_access_token(
     if expires_delta is None:
         expires_delta = timedelta(minutes=expires_minutes)
 
-    expire = datetime.now(UTC) + expires_delta  # Updated to use UTC
+    expire = datetime.now(UTC) + expires_delta
 
     # Build the token payload
     payload = {
         "sub": subject,
         "exp": expire,
-        "iat": datetime.now(UTC),  # Updated to use UTC
+        "iat": datetime.now(UTC),
         "iss": issuer,
-        "aud": audience,  # Now a string, not a list
+        "aud": audience,
         "type": "access",
     }
 
@@ -471,10 +471,8 @@ def create_access_token(
         payload.update(additional_claims)
 
     # Encode the token
-    token = jwt.encode(
+    return jwt.encode(
         payload,
         secret_key,
         algorithm=algorithm,
     )
-
-    return token

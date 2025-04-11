@@ -5,21 +5,16 @@ This module contains tests for the pagination utilities, including
 PaginationParams, PageInfo, and the paginate function.
 """
 
-import math
+from math import ceil
 from typing import List
 
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Query
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from fastcore.api.pagination import (
-    Page,
-    PageInfo,
-    PaginationParams,
-    get_paginated_response_model,
-    paginate,
-)
+from fastcore.api.pagination import PaginationParams, paginate
+from fastcore.api.responses import FilterInfo, ListMetadata, ListResponse, SortInfo
 
 
 class TestPaginationParams:
@@ -30,15 +25,19 @@ class TestPaginationParams:
         params = PaginationParams()
         assert params.page == 1
         assert params.size == 20
+        assert params.offset is None
+        assert params.limit is None
 
     def test_custom_values(self):
         """Test that custom values are set correctly."""
-        params = PaginationParams(page=2, size=50)
+        params = PaginationParams(page=2, size=50, offset=10, limit=25)
         assert params.page == 2
         assert params.size == 50
+        assert params.offset == 10
+        assert params.limit == 25
 
-    def test_skip_calculation(self):
-        """Test the calculation of items to skip."""
+    def test_skip_calculation_with_page(self):
+        """Test the calculation of items to skip using page-based pagination."""
         # Page 1 should skip 0 items
         assert PaginationParams(page=1, size=10).get_skip() == 0
 
@@ -48,129 +47,77 @@ class TestPaginationParams:
         # Page 3 with size 25 should skip 50 items
         assert PaginationParams(page=3, size=25).get_skip() == 50
 
-    def test_limit(self):
-        """Test that get_limit returns the size."""
-        params = PaginationParams(page=3, size=30)
-        assert params.get_limit() == 30
+    def test_skip_calculation_with_offset(self):
+        """Test the calculation of items to skip using offset-based pagination."""
+        params = PaginationParams(page=2, size=10, offset=15)
+        assert params.get_skip() == 15  # Offset should override page-based calculation
+
+    def test_limit_calculation(self):
+        """Test the calculation of limit."""
+        # Default should use size
+        params = PaginationParams(page=1, size=20)
+        assert params.get_limit() == 20
+
+        # Explicit limit should override size
+        params = PaginationParams(page=1, size=20, limit=10)
+        assert params.get_limit() == 10
 
     def test_to_dict(self):
         """Test conversion to dictionary."""
+        # Basic parameters
         params = PaginationParams(page=5, size=42)
         assert params.to_dict() == {"page": 5, "size": 42}
 
+        # With offset/limit
+        params = PaginationParams(page=5, size=42, offset=10, limit=20)
+        result = params.to_dict()
+        assert result == {"page": 5, "size": 42, "offset": 10, "limit": 20}
 
-class TestPageInfo:
-    """Tests for the PageInfo class."""
-
-    def test_from_parameters_empty(self):
-        """Test creation from parameters with empty results."""
-        params = PaginationParams(page=1, size=10)
-        info = PageInfo.from_parameters(params, 0)
-
-        assert info.page == 1
-        assert info.size == 10
-        assert info.total_items == 0
-        assert info.total_pages == 0
-        assert info.has_next is False
-        assert info.has_previous is False
-
-    def test_from_parameters_single_page(self):
-        """Test creation from parameters with results fitting in one page."""
-        params = PaginationParams(page=1, size=10)
-        info = PageInfo.from_parameters(params, 5)
-
-        assert info.page == 1
-        assert info.size == 10
-        assert info.total_items == 5
-        assert info.total_pages == 1
-        assert info.has_next is False
-        assert info.has_previous is False
-
-    def test_from_parameters_first_of_many(self):
-        """Test creation from parameters on first page of many."""
-        params = PaginationParams(page=1, size=10)
-        info = PageInfo.from_parameters(params, 25)
-
-        assert info.page == 1
-        assert info.size == 10
-        assert info.total_items == 25
-        assert info.total_pages == 3  # Ceil of 25/10
-        assert info.has_next is True
-        assert info.has_previous is False
-
-    def test_from_parameters_middle_page(self):
-        """Test creation from parameters on a middle page."""
+    def test_to_metadata(self):
+        """Test conversion to ListMetadata."""
         params = PaginationParams(page=2, size=10)
-        info = PageInfo.from_parameters(params, 25)
+        metadata = params.to_metadata(total_items=25)
 
-        assert info.page == 2
-        assert info.size == 10
-        assert info.total_items == 25
-        assert info.total_pages == 3
-        assert info.has_next is True
-        assert info.has_previous is True
-
-    def test_from_parameters_last_page(self):
-        """Test creation from parameters on the last page."""
-        params = PaginationParams(page=3, size=10)
-        info = PageInfo.from_parameters(params, 25)
-
-        assert info.page == 3
-        assert info.size == 10
-        assert info.total_items == 25
-        assert info.total_pages == 3
-        assert info.has_next is False
-        assert info.has_previous is True
-
-    def test_from_parameters_partial_page(self):
-        """Test creation from parameters with a partial last page."""
-        params = PaginationParams(page=2, size=10)
-        info = PageInfo.from_parameters(params, 15)
-
-        assert info.page == 2
-        assert info.size == 10
-        assert info.total_items == 15
-        assert info.total_pages == 2
-        assert info.has_next is False
-        assert info.has_previous is True
+        assert isinstance(metadata, ListMetadata)
+        assert metadata.total_count == 25
+        assert metadata.filtered_count == 25
+        assert metadata.page == 2
+        assert metadata.page_size == 10
+        assert metadata.total_pages == 3
+        assert metadata.has_next is True
+        assert metadata.has_previous is True
+        assert metadata.offset == 10
+        assert metadata.limit == 10
 
 
 def test_paginate():
-    """Test the paginate function."""
+    """Test the paginate function with all features."""
     items = ["a", "b", "c"]
     params = PaginationParams(page=1, size=10)
-    total_items = 3
+    filters = [FilterInfo(field="type", operator="equals", value="letter")]
+    sorting = [SortInfo(field="value", direction="asc")]
+    aggregations = {"count_by_type": {"letter": 3}}
 
-    result = paginate(items, params, total_items)
+    result = paginate(
+        items=items,
+        params=params,
+        total_items=10,
+        filtered_count=3,
+        applied_filters=filters,
+        applied_sorting=sorting,
+        aggregations=aggregations,
+        message="Test message",
+    )
 
-    assert isinstance(result, Page)
-    assert result.items == items
-    assert result.page_info.page == 1
-    assert result.page_info.size == 10
-    assert result.page_info.total_items == 3
-    assert result.page_info.total_pages == 1
-    assert result.page_info.has_next is False
-    assert result.page_info.has_previous is False
-
-
-class TestPaginatedResponseModel:
-    """Tests for the get_paginated_response_model function."""
-
-    def test_response_model_creation(self):
-        """Test creation of a paginated response model."""
-
-        # Sample item model
-        class TestItem(BaseModel):
-            id: int
-            name: str
-
-        # Create paginated response model
-        PaginatedTestItems = get_paginated_response_model(TestItem)
-
-        # Check model name and fields
-        assert PaginatedTestItems.__name__ == "PageTestItem"
-        assert "items" in PaginatedTestItems.model_fields
-        assert "page_info" in PaginatedTestItems.model_fields
+    assert isinstance(result, ListResponse)
+    assert result.success is True
+    assert result.data == items
+    assert result.message == "Test message"
+    assert result.list_metadata.total_count == 10
+    assert result.list_metadata.filtered_count == 3
+    assert result.applied_filters == filters
+    assert result.applied_sorting == sorting
+    assert result.aggregations == aggregations
 
 
 class TestFastAPIIntegration:
@@ -186,6 +133,7 @@ class TestFastAPIIntegration:
                 "page": pagination.page,
                 "size": pagination.size,
                 "skip": pagination.get_skip(),
+                "limit": pagination.get_limit(),
             }
 
         client = TestClient(app)
@@ -193,89 +141,121 @@ class TestFastAPIIntegration:
         # Test with defaults
         response = client.get("/test")
         assert response.status_code == 200
-        assert response.json() == {"page": 1, "size": 20, "skip": 0}
+        assert response.json() == {"page": 1, "size": 20, "skip": 0, "limit": 20}
 
-        # Test with custom values
+        # Test with custom page/size
         response = client.get("/test?page=3&size=15")
         assert response.status_code == 200
-        assert response.json() == {"page": 3, "size": 15, "skip": 30}
+        assert response.json() == {"page": 3, "size": 15, "skip": 30, "limit": 15}
 
-        # Test with validation (size must be >= 1)
-        response = client.get("/test?size=0")
-        assert response.status_code == 422  # Unprocessable Entity
+        # Test with offset/limit
+        response = client.get("/test?offset=25&limit=50")
+        assert response.status_code == 200
+        assert response.json() == {"page": 1, "size": 20, "skip": 25, "limit": 50}
 
-        # Test with validation (page must be >= 1)
+        # Test validation errors
         response = client.get("/test?page=0")
-        assert response.status_code == 422  # Unprocessable Entity
+        assert response.status_code == 422
 
-    def test_paginated_response(self):
-        """Test returning a paginated response from a FastAPI endpoint."""
+        response = client.get("/test?size=0")
+        assert response.status_code == 422
 
-        # Sample item model
-        class ItemModel(BaseModel):
-            id: int
-            name: str
+        response = client.get("/test?offset=-1")
+        assert response.status_code == 422
 
-        # Create paginated response model
-        PaginatedItems = get_paginated_response_model(ItemModel)
+        response = client.get("/test?limit=0")
+        assert response.status_code == 422
 
-        # Create FastAPI app
+    def test_enhanced_list_response(self):
+        """Test returning an enhanced list response with all features."""
         app = FastAPI()
 
-        @app.get("/items", response_model=PaginatedItems)
-        def read_items(pagination: PaginationParams = Depends()):
-            items = [
-                {"id": 1, "name": "Item 1"},
-                {"id": 2, "name": "Item 2"},
-                {"id": 3, "name": "Item 3"},
-                {"id": 4, "name": "Item 4"},
-                {"id": 5, "name": "Item 5"},
+        class Item(BaseModel):
+            id: int
+            name: str
+            category: str
+
+        @app.get("/items", response_model=ListResponse[Item])
+        def read_items(
+            category: str = Query(None),
+            sort_by: str = Query(None),
+            pagination: PaginationParams = Depends(),
+        ):
+            # Sample data
+            all_items = [
+                Item(id=1, name="A", category="cat1"),
+                Item(id=2, name="B", category="cat2"),
+                Item(id=3, name="C", category="cat1"),
             ]
 
-            # Apply pagination
+            # Apply filters
+            if category:
+                items = [i for i in all_items if i.category == category]
+            else:
+                items = all_items
+
+            # Apply sorting
+            if sort_by:
+                items.sort(key=lambda x: getattr(x, sort_by))
+
+            # Get paginated subset
             start = pagination.get_skip()
-            end = start + pagination.size
+            end = start + pagination.get_limit()
             page_items = items[start:end]
 
-            # Return paginated response
-            return paginate(page_items, pagination, len(items))
+            return paginate(
+                items=page_items,
+                params=pagination,
+                total_items=len(all_items),
+                filtered_count=len(items),
+                applied_filters=[
+                    FilterInfo(field="category", operator="equals", value=category)
+                ]
+                if category
+                else None,
+                applied_sorting=[SortInfo(field=sort_by, direction="asc")]
+                if sort_by
+                else None,
+                aggregations={
+                    "categories": {
+                        "cat1": len([i for i in items if i.category == "cat1"]),
+                        "cat2": len([i for i in items if i.category == "cat2"]),
+                    }
+                },
+                message="Items retrieved successfully",
+            )
 
         client = TestClient(app)
 
-        # Test first page
+        # Test basic pagination
         response = client.get("/items?page=1&size=2")
         data = response.json()
-
         assert response.status_code == 200
-        assert len(data["items"]) == 2
-        assert data["items"][0]["id"] == 1
-        assert data["items"][1]["id"] == 2
-        assert data["page_info"]["page"] == 1
-        assert data["page_info"]["size"] == 2
-        assert data["page_info"]["total_items"] == 5
-        assert data["page_info"]["total_pages"] == 3
-        assert data["page_info"]["has_next"] is True
-        assert data["page_info"]["has_previous"] is False
+        assert len(data["data"]) == 2
+        assert data["success"] is True
+        assert data["message"] == "Items retrieved successfully"
+        assert data["list_metadata"]["total_count"] == 3
+        assert data["list_metadata"]["page"] == 1
+        assert data["list_metadata"]["has_next"] is True
 
-        # Test second page
-        response = client.get("/items?page=2&size=2")
+        # Test with filtering
+        response = client.get("/items?category=cat1")
         data = response.json()
+        assert len(data["data"]) == 2
+        assert data["list_metadata"]["filtered_count"] == 2
+        assert len(data["applied_filters"]) == 1
+        assert data["applied_filters"][0]["field"] == "category"
 
-        assert response.status_code == 200
-        assert len(data["items"]) == 2
-        assert data["items"][0]["id"] == 3
-        assert data["items"][1]["id"] == 4
-        assert data["page_info"]["page"] == 2
-        assert data["page_info"]["has_next"] is True
-        assert data["page_info"]["has_previous"] is True
-
-        # Test last page
-        response = client.get("/items?page=3&size=2")
+        # Test with sorting
+        response = client.get("/items?sort_by=name")
         data = response.json()
+        assert data["data"][0]["name"] == "A"
+        assert len(data["applied_sorting"]) == 1
+        assert data["applied_sorting"][0]["field"] == "name"
 
-        assert response.status_code == 200
-        assert len(data["items"]) == 1  # Only one item on the last page
-        assert data["items"][0]["id"] == 5
-        assert data["page_info"]["page"] == 3
-        assert data["page_info"]["has_next"] is False
-        assert data["page_info"]["has_previous"] is True
+        # Test aggregations
+        response = client.get("/items")
+        data = response.json()
+        assert "categories" in data["aggregations"]
+        assert data["aggregations"]["categories"]["cat1"] == 2
+        assert data["aggregations"]["categories"]["cat2"] == 1
