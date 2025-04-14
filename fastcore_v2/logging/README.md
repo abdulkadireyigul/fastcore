@@ -8,6 +8,7 @@ A simple logging interface for FastAPI applications that integrates with the con
 - Integration with application settings
 - Standard log formatting
 - Debug mode support
+- JSON format support for structured logging
 
 ## Usage
 
@@ -38,6 +39,33 @@ logger = get_logger(__name__, settings)
 logger.debug("Debug message")
 ```
 
+### JSON Format Logging
+
+```python
+from fastcore_v2.logging import get_logger
+
+# Enable JSON format for structured logging
+logger = get_logger(__name__, json_format=True)
+
+logger.info("User logged in")
+# Output: {"timestamp": "2025-04-14T10:30:00", "level": "INFO", "message": "User logged in"}
+```
+
+### Custom Logger with JsonFormatter
+
+```python
+import logging
+from fastcore_v2.logging import JsonFormatter
+
+# Create your own logger
+logger = logging.getLogger(__name__)
+handler = logging.StreamHandler()
+handler.setFormatter(JsonFormatter())
+logger.addHandler(handler)
+
+logger.info("Custom logger with JSON format")
+```
+
 ### Custom Configuration
 
 ```python
@@ -47,7 +75,8 @@ from fastcore_v2.logging import setup_logger
 logger = setup_logger(
     name=__name__,
     level="DEBUG",
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    json_format=True  # Enable JSON formatting
 )
 ```
 
@@ -63,6 +92,7 @@ The module supports standard Python logging levels:
 ## Structure
 
 - `logger.py`: Core logging functionality
+- `formatters.py`: Custom log formatters (JsonFormatter)
 - `__init__.py`: Public API
 
 ## Integration with Config Module
