@@ -23,10 +23,10 @@ from typing import Dict, List, Optional
 import uvicorn
 from fastapi import Depends, FastAPI, Query
 
-from fastcore.app_factory import create_app
 from fastcore.cache.decorator import cached, invalidate_cache
 from fastcore.cache.manager import get_cache_manager
 from fastcore.config.app import AppSettings, Environment
+from fastcore.factory import create_app
 
 
 # Create custom settings with the cache type from environment

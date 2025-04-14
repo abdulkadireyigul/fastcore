@@ -12,8 +12,8 @@ from fastapi import Depends, FastAPI, HTTPException, Security, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
-from fastcore.app_factory import create_app
 from fastcore.config.base import Environment
+from fastcore.factory import create_app
 from fastcore.security import (
     APIKey,
     JWTAuth,

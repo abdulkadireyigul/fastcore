@@ -17,9 +17,9 @@ from fastcore.api.responses import (
     SortInfo,
     create_response,
 )
-from fastcore.app_factory import create_app
 from fastcore.config.base import Environment
 from fastcore.db.session import Session, get_db
+from fastcore.factory import create_app
 
 # Create app with all components enabled
 app = create_app(

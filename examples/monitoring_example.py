@@ -13,8 +13,8 @@ from typing import Dict, List, Optional
 from fastapi import Depends, FastAPI, Query, Request
 from pydantic import BaseModel
 
-from fastcore.app_factory import create_app
 from fastcore.config.base import Environment
+from fastcore.factory import create_app
 from fastcore.monitoring import (
     HealthCheck,
     HealthStatus,

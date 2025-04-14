@@ -16,9 +16,9 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from fastcore.app_factory import create_app
 from fastcore.config.app import LoggingSettings
 from fastcore.config.base import Environment
+from fastcore.factory import create_app
 from fastcore.logging import (
     BufferedHandler,
     ColorFormatter,
@@ -369,16 +369,16 @@ class TestBufferedHandler:
 class TestAppFactoryIntegration:
     """Tests for logging integration in the app factory."""
 
-    @patch("fastcore.app_factory.configure_logging")
-    def test_app_factory_configures_logging(self, mock_configure_logging):
+    @patch("fastcore.factory.configure_logging")
+    def test_factory_configures_logging(self, mock_configure_logging):
         """Test that the app factory configures logging."""
         app = create_app(env=Environment.DEVELOPMENT, enable_logging=True)
 
         # Verify that configure_logging was called
         mock_configure_logging.assert_called_once()
 
-    @patch("fastcore.app_factory.configure_logging")
-    def test_app_factory_disables_logging(self, mock_configure_logging):
+    @patch("fastcore.factory.configure_logging")
+    def test_factory_disables_logging(self, mock_configure_logging):
         """Test that the app factory can disable logging configuration."""
         app = create_app(env=Environment.DEVELOPMENT, enable_logging=False)
 

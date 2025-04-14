@@ -1,7 +1,7 @@
 """
-Tests for the app_factory module.
+Tests for the factory module.
 
-This module contains comprehensive tests for the app_factory module,
+This module contains comprehensive tests for the factory module,
 which is responsible for creating and configuring FastAPI applications.
 """
 
@@ -13,9 +13,9 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
 
-from fastcore.app_factory import _configure_cache, create_app
 from fastcore.config.app import AppSettings
 from fastcore.config.base import Environment
+from fastcore.factory import _configure_cache, create_app
 from fastcore.middleware import (
     CORSConfig,
     I18nConfig,
@@ -52,28 +52,28 @@ def mock_load_settings(mock_settings):
 @pytest.fixture
 def mock_configure_logging():
     """Mock the configure_logging function."""
-    with patch("fastcore.app_factory.configure_logging") as mock:
+    with patch("fastcore.factory.configure_logging") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_initialize_db():
     """Mock the initialize_db function."""
-    with patch("fastcore.app_factory.initialize_db") as mock:
+    with patch("fastcore.factory.initialize_db") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_configure_cache():
     """Mock the _configure_cache function."""
-    with patch("fastcore.app_factory._configure_cache") as mock:
+    with patch("fastcore.factory._configure_cache") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_configure_environment_middleware():
     """Mock the configure_environment_middleware function."""
-    with patch("fastcore.app_factory.configure_environment_middleware") as mock:
+    with patch("fastcore.factory.configure_environment_middleware") as mock:
         yield mock
 
 
@@ -123,7 +123,7 @@ def test_create_app_with_different_environment(
 
 def test_create_app_with_database(mock_load_settings, mock_configure_logging):
     """Test creating an app with database enabled."""
-    with patch("fastcore.app_factory.initialize_db") as mock_initialize_db:
+    with patch("fastcore.factory.initialize_db") as mock_initialize_db:
         app = create_app(enable_database=True)
 
         # Verify the database was initialized during lifespan setup
@@ -219,7 +219,7 @@ def test_create_app_exception_handlers(mock_load_settings, mock_configure_loggin
 
 def test_create_app_cors_config(mock_load_settings, mock_configure_logging):
     """Test creating an app with custom CORS configuration."""
-    with patch("fastcore.app_factory.configure_cors") as mock_configure_cors:
+    with patch("fastcore.factory.configure_cors") as mock_configure_cors:
         # Create app with CORS config
         cors_config = CORSConfig(
             allow_origins=["https://example.com"], allow_credentials=True
@@ -235,8 +235,8 @@ def test_create_app_cors_config(mock_load_settings, mock_configure_logging):
 
 def test_cors_config_dict(mock_load_settings, mock_configure_logging):
     """Test creating an app with CORS config as dict."""
-    with patch("fastcore.app_factory.configure_cors") as mock_configure_cors, patch(
-        "fastcore.app_factory.CORSConfig"
+    with patch("fastcore.factory.configure_cors") as mock_configure_cors, patch(
+        "fastcore.factory.CORSConfig"
     ) as mock_cors_config_class:
         # Create app with CORS config as dict
         cors_config = {
@@ -273,7 +273,7 @@ def test_configure_cache_function():
     # Mock the module import inside the function and built-in hasattr
     with patch.dict("sys.modules", {"fastcore.cache": Mock()}), patch(
         "builtins.hasattr", lambda obj, attr: attr != "REDIS_URL"
-    ), patch("fastcore.app_factory.logger", mock_logger):
+    ), patch("fastcore.factory.logger", mock_logger):
         # Configure the mock for the imported configure_cache
         import sys
 
@@ -315,8 +315,8 @@ def test_configure_cache_no_cache_settings():
 async def test_lifespan_context():
     """Test the lifespan context manager."""
     # Create an app with database enabled
-    with patch("fastcore.app_factory.initialize_db") as mock_init_db, patch(
-        "fastcore.app_factory._configure_cache"
+    with patch("fastcore.factory.initialize_db") as mock_init_db, patch(
+        "fastcore.factory._configure_cache"
     ) as mock_config_cache:
         app = create_app(enable_database=True)
 
@@ -340,7 +340,7 @@ def test_manual_middleware_cors_default_origins(
     mock_load_settings, mock_configure_logging
 ):
     """Test manual CORS middleware configuration with default origins."""
-    with patch("fastcore.app_factory.configure_cors") as mock_configure_cors:
+    with patch("fastcore.factory.configure_cors") as mock_configure_cors:
         # Create app with manual middleware configuration
         app = create_app(
             env=Environment.DEVELOPMENT, enable_cors=True, auto_configure=False
@@ -357,7 +357,7 @@ def test_manual_middleware_cors_default_origins_production(
     mock_load_settings, mock_configure_logging
 ):
     """Test manual CORS middleware configuration with default origins in production."""
-    with patch("fastcore.app_factory.configure_cors") as mock_configure_cors:
+    with patch("fastcore.factory.configure_cors") as mock_configure_cors:
         # Create app with manual middleware configuration
         app = create_app(
             env=Environment.PRODUCTION, enable_cors=True, auto_configure=False
@@ -373,7 +373,7 @@ def test_manual_middleware_cors_default_origins_production(
 def test_manual_middleware_rate_limiting(mock_load_settings, mock_configure_logging):
     """Test manual rate limiting middleware configuration."""
     with patch(
-        "fastcore.app_factory.configure_rate_limiting"
+        "fastcore.factory.configure_rate_limiting"
     ) as mock_configure_rate_limiting:
         # Create app with manual rate limiting middleware
         rate_limit_config = RateLimitConfig(
@@ -395,9 +395,9 @@ def test_manual_middleware_rate_limiting_dict(
 ):
     """Test manual rate limiting middleware configuration with dict config."""
     with patch(
-        "fastcore.app_factory.configure_rate_limiting"
+        "fastcore.factory.configure_rate_limiting"
     ) as mock_configure_rate_limiting, patch(
-        "fastcore.app_factory.RateLimitConfig", return_value=Mock()
+        "fastcore.factory.RateLimitConfig", return_value=Mock()
     ) as mock_rate_limit_class:
         # Create app with manual rate limiting middleware using dict config
         rate_limit_config = {
@@ -421,7 +421,7 @@ def test_manual_middleware_rate_limiting_dict(
 
 def test_manual_middleware_i18n(mock_load_settings, mock_configure_logging):
     """Test manual i18n middleware configuration."""
-    with patch("fastcore.app_factory.configure_i18n") as mock_configure_i18n:
+    with patch("fastcore.factory.configure_i18n") as mock_configure_i18n:
         # Create app with manual i18n middleware
         i18n_config = I18nConfig(
             default_language="en",
@@ -439,8 +439,8 @@ def test_manual_middleware_i18n(mock_load_settings, mock_configure_logging):
 
 def test_manual_middleware_i18n_dict(mock_load_settings, mock_configure_logging):
     """Test manual i18n middleware configuration with dict config."""
-    with patch("fastcore.app_factory.configure_i18n") as mock_configure_i18n, patch(
-        "fastcore.app_factory.I18nConfig", return_value=Mock()
+    with patch("fastcore.factory.configure_i18n") as mock_configure_i18n, patch(
+        "fastcore.factory.I18nConfig", return_value=Mock()
     ) as mock_i18n_class:
         # Create app with manual i18n middleware using dict config
         i18n_config = {
@@ -463,7 +463,7 @@ def test_manual_middleware_i18n_dict(mock_load_settings, mock_configure_logging)
 def test_manual_middleware_trusted_hosts(mock_load_settings, mock_configure_logging):
     """Test manual trusted hosts middleware configuration."""
     with patch(
-        "fastcore.app_factory.configure_trusted_hosts"
+        "fastcore.factory.configure_trusted_hosts"
     ) as mock_configure_trusted_hosts:
         # Create app with manual trusted hosts middleware
         trusted_hosts_config = TrustedHostsConfig(
@@ -485,9 +485,9 @@ def test_manual_middleware_trusted_hosts_dict(
 ):
     """Test manual trusted hosts middleware configuration with dict config."""
     with patch(
-        "fastcore.app_factory.configure_trusted_hosts"
+        "fastcore.factory.configure_trusted_hosts"
     ) as mock_configure_trusted_hosts, patch(
-        "fastcore.app_factory.TrustedHostsConfig", return_value=Mock()
+        "fastcore.factory.TrustedHostsConfig", return_value=Mock()
     ) as mock_trusted_hosts_class:
         # Create app with manual trusted hosts middleware using dict config
         trusted_hosts_config = {"allowed_hosts": ["example.com", "api.example.com"]}
@@ -507,7 +507,7 @@ def test_manual_middleware_trusted_hosts_dict(
 
 def test_manual_middleware_timing(mock_load_settings, mock_configure_logging):
     """Test manual timing middleware configuration."""
-    with patch("fastcore.app_factory.configure_timing") as mock_configure_timing:
+    with patch("fastcore.factory.configure_timing") as mock_configure_timing:
         # Create app with manual timing middleware
         timing_config = TimingConfig(
             include_in_response=True, slow_request_threshold_ms=500
@@ -523,8 +523,8 @@ def test_manual_middleware_timing(mock_load_settings, mock_configure_logging):
 
 def test_manual_middleware_timing_dict(mock_load_settings, mock_configure_logging):
     """Test manual timing middleware configuration with dict config."""
-    with patch("fastcore.app_factory.configure_timing") as mock_configure_timing, patch(
-        "fastcore.app_factory.TimingConfig", return_value=Mock()
+    with patch("fastcore.factory.configure_timing") as mock_configure_timing, patch(
+        "fastcore.factory.TimingConfig", return_value=Mock()
     ) as mock_timing_class:
         # Create app with manual timing middleware using dict config
         timing_config = {"include_in_response": True, "slow_request_threshold_ms": 500}
@@ -543,7 +543,7 @@ def test_manual_middleware_timing_dict(mock_load_settings, mock_configure_loggin
 def test_error_handlers_registered(mock_load_settings, mock_configure_logging):
     """Test that error handlers are properly registered."""
     with patch(
-        "fastcore.app_factory.exception_handlers", {"Exception": lambda req, exc: None}
+        "fastcore.factory.exception_handlers", {"Exception": lambda req, exc: None}
     ):
         # Create app with error handlers enabled
         app = create_app(enable_error_handlers=True)

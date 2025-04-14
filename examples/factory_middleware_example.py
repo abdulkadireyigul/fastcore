@@ -8,8 +8,8 @@ with various middleware components enabled and configured.
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from fastcore.app_factory import create_app
 from fastcore.config.base import Environment
+from fastcore.factory import create_app
 from fastcore.middleware import (
     CORSConfig,
     I18nConfig,

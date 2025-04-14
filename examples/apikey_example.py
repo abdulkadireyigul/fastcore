@@ -10,8 +10,8 @@ from typing import Dict, List, Optional
 from fastapi import Depends, FastAPI, HTTPException, Security, status
 from pydantic import BaseModel
 
-from fastcore.app_factory import create_app
 from fastcore.config.base import Environment
+from fastcore.factory import create_app
 from fastcore.logging import get_logger
 from fastcore.security import (
     APIKey,
