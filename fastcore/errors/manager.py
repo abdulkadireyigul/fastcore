@@ -10,7 +10,7 @@ from typing import Optional
 
 from fastapi import FastAPI
 
-from fastcore_v2.config.base import BaseAppSettings
+from fastcore.config.base import BaseAppSettings
 
 from .handlers import register_exception_handlers
 

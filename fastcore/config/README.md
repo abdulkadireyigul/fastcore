@@ -14,7 +14,7 @@ A simple, environment-aware configuration system for FastAPI applications.
 ### Basic Usage
 
 ```python
-from fastcore_v2.config import settings
+from fastcore.config import settings
 
 # Access settings directly
 app_name = settings.APP_NAME
@@ -30,7 +30,7 @@ The module automatically loads the correct settings based on the `APP_ENV` envir
 # export APP_ENV=production  # Linux/Mac
 # set APP_ENV=production    # Windows
 
-from fastcore_v2.config import settings
+from fastcore.config import settings
 
 # Will use ProductionSettings
 print(settings.DEBUG)  # False
@@ -41,7 +41,7 @@ print(settings.DEBUG)  # False
 You can create your own settings by inheriting from BaseAppSettings:
 
 ```python
-from fastcore_v2.config import BaseAppSettings
+from fastcore.config import BaseAppSettings
 
 class MyCustomSettings(BaseAppSettings):
     CUSTOM_FIELD: str = "default value"

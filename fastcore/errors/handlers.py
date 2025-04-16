@@ -15,7 +15,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
-from fastcore_v2.schemas import ErrorInfo, ErrorResponse
+from fastcore.schemas import ErrorInfo, ErrorResponse
 
 from .exceptions import AppError
 

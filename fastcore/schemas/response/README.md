@@ -91,7 +91,7 @@ GET /users?page=2&page_size=2:
 
 ```python
 from fastapi import FastAPI
-from fastcore_v2.schemas import DataResponse, ListResponse, ErrorResponse
+from fastcore.schemas import DataResponse, ListResponse, ErrorResponse
 
 app = FastAPI()
 
@@ -118,8 +118,8 @@ To create a custom response type:
 
 ```python
 from typing import Generic, TypeVar
-from fastcore_v2.schemas import BaseResponse
-from fastcore_v2.schemas.metadata import ResponseMetadata
+from fastcore.schemas import BaseResponse
+from fastcore.schemas.metadata import ResponseMetadata
 
 T = TypeVar("T")
 

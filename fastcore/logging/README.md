@@ -15,7 +15,7 @@ A simple logging interface for FastAPI applications that integrates with the con
 ### Basic Usage
 
 ```python
-from fastcore_v2.logging import get_logger
+from fastcore.logging import get_logger
 
 # Create a logger for your module
 logger = get_logger(__name__)
@@ -29,8 +29,8 @@ logger.error("An error occurred")
 ### With Application Settings
 
 ```python
-from fastcore_v2.config import settings
-from fastcore_v2.logging import get_logger
+from fastcore.config import settings
+from fastcore.logging import get_logger
 
 # Logger will respect settings.DEBUG
 logger = get_logger(__name__, settings)
@@ -42,7 +42,7 @@ logger.debug("Debug message")
 ### JSON Format Logging
 
 ```python
-from fastcore_v2.logging import get_logger
+from fastcore.logging import get_logger
 
 # Enable JSON format for structured logging
 logger = get_logger(__name__, json_format=True)
@@ -55,7 +55,7 @@ logger.info("User logged in")
 
 ```python
 import logging
-from fastcore_v2.logging import JsonFormatter
+from fastcore.logging import JsonFormatter
 
 # Create your own logger
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ logger.info("Custom logger with JSON format")
 ### Custom Configuration
 
 ```python
-from fastcore_v2.logging import setup_logger
+from fastcore.logging import setup_logger
 
 # Configure a logger with custom settings
 logger = setup_logger(

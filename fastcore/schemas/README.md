@@ -20,7 +20,7 @@ This module provides standardized schemas for:
 
 ```python
 from fastapi import FastAPI
-from fastcore_v2.schemas import DataResponse, ListResponse
+from fastcore.schemas import DataResponse, ListResponse
 
 app = FastAPI()
 

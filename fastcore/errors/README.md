@@ -8,7 +8,7 @@ Standardized error handling for FastAPI applications.
 - Automatic conversion of exceptions to standard API responses
 - Integration with FastAPI's exception handling
 - Simple setup with minimal boilerplate
-- Works standalone or integrated with other fastcore_v2 modules
+- Works standalone or integrated with other fastcore modules
 
 ## Usage
 
@@ -16,7 +16,7 @@ Standardized error handling for FastAPI applications.
 
 ```python
 from fastapi import FastAPI
-from fastcore_v2.errors import setup_errors, NotFoundError
+from fastcore.errors import setup_errors, NotFoundError
 
 app = FastAPI()
 
@@ -40,9 +40,9 @@ async def get_item(item_id: int):
 
 ```python
 from fastapi import FastAPI
-from fastcore_v2.config import settings
-from fastcore_v2.logging import get_logger
-from fastcore_v2.errors import setup_errors, ValidationError
+from fastcore.config import settings
+from fastcore.logging import get_logger
+from fastcore.errors import setup_errors, ValidationError
 
 app = FastAPI()
 
@@ -96,7 +96,7 @@ Both `ValidationError` and `BadRequestError` return a 400 HTTP status code but s
 You can create custom exceptions by inheriting from `AppError`:
 
 ```python
-from fastcore_v2.errors import AppError
+from fastcore.errors import AppError
 from http import HTTPStatus
 
 class RateLimitError(AppError):

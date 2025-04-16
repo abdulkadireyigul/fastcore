@@ -8,7 +8,7 @@ import logging
 import sys
 from typing import Optional
 
-from fastcore_v2.config.base import BaseAppSettings
+from fastcore.config.base import BaseAppSettings
 
 from .formatters import JsonFormatter
 
