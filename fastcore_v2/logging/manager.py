@@ -73,5 +73,9 @@ def get_logger(
     Returns:
         Configured logger instance
     """
-    debug = settings.DEBUG if settings else False
+    # Safely check debug mode
+    debug = False
+    if settings and hasattr(settings, "DEBUG"):
+        debug = bool(settings.DEBUG)
+
     return setup_logger(name, debug=debug, json_format=json_format)
