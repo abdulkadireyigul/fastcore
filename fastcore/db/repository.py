@@ -35,12 +35,14 @@ class BaseRepository(Generic[ModelType]):
 
     async def list(
         self,
-        filters: Dict[str, Any] = {},
+        filters: Optional[Dict[str, Any]] = None,
         offset: int = 0,
         limit: int = 100,
     ) -> List[ModelType]:
         """List records with optional filters, pagination via offset and limit."""
         try:
+            # Avoid mutable default for filters
+            filters = filters or {}
             stmt = select(self.model)
             if filters:
                 stmt = stmt.filter_by(**filters)
