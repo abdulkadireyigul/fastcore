@@ -1,7 +1,8 @@
 """
 Logging module for FastAPI applications.
 
-This module provides a simple logging interface that integrates with application settings.
+This module provides a simple logging interface 
+that integrates with application settings.
 """
 
 from .formatters import JsonFormatter

@@ -1,7 +1,9 @@
 """
-Basic logging configuration for FastAPI applications.
+Basic logging configuration for FastAPI 
+applications.
 
-This module provides a simple and consistent logging setup across different environments.
+This module provides a simple and consistent 
+logging setup across different environments.
 """
 
 import logging

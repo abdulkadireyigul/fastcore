@@ -20,11 +20,26 @@ class BaseAppSettings(BaseSettings):
         APP_NAME: The name of the application
         DEBUG: Flag to enable/disable debug mode
         VERSION: Application version string
+        CACHE_URL: Redis connection URL for caching
+        CACHE_DEFAULT_TTL: Default cache TTL in seconds
+        CACHE_KEY_PREFIX: Optional prefix for cache keys
     """
 
     APP_NAME: str = Field(default="FastCore")
     DEBUG: bool = Field(default=False)
     VERSION: str = Field(default="0.1.0")
+
+    # Cache configuration
+    CACHE_URL: str = Field(
+        default="redis://localhost:6379/0",
+        description="Redis connection URL for caching",
+    )
+    CACHE_DEFAULT_TTL: int = Field(
+        default=300, description="Default cache TTL in seconds"
+    )
+    CACHE_KEY_PREFIX: str = Field(
+        default="", description="Optional prefix for cache keys"
+    )
 
     class Config:
         env_file = ".env"
