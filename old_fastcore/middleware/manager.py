@@ -9,9 +9,6 @@ import logging
 from typing import List, Optional
 
 from fastapi import FastAPI
-
-from fastcore.config.base import Environment
-from fastcore.logging import get_logger
 from fastcore.middleware.cors import CORSConfig, configure_cors
 from fastcore.middleware.i18n import I18nConfig, configure_i18n
 from fastcore.middleware.rate_limiting import RateLimitConfig, configure_rate_limiting
@@ -20,6 +17,9 @@ from fastcore.middleware.trusted_hosts import (
     TrustedHostsConfig,
     configure_trusted_hosts,
 )
+
+from fastcore.config.base import Environment
+from fastcore.logging import get_logger
 
 # Get a logger for this module
 logger = get_logger(__name__)

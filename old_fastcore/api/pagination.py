@@ -9,8 +9,6 @@ from math import ceil
 from typing import Any, Dict, Generic, List, Optional, Sequence, Type, TypeVar, Union
 
 from fastapi import Query
-from pydantic import BaseModel, ConfigDict, create_model
-
 from fastcore.api.responses import (
     BaseResponse,
     FilterInfo,
@@ -18,6 +16,7 @@ from fastcore.api.responses import (
     ListResponse,
     SortInfo,
 )
+from pydantic import BaseModel, ConfigDict, create_model
 
 T = TypeVar("T")
 
