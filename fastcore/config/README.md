@@ -56,6 +56,12 @@ The following environment variables are supported:
 - `APP_NAME`: Override the application name
 - `DEBUG`: Override debug mode
 - `VERSION`: Override version number
+- `CACHE_URL`: Redis connection URL for caching (e.g., `redis://localhost:6379/0`)
+- `CACHE_DEFAULT_TTL`: Default TTL in seconds for cache entries (e.g., `300`)
+- `CACHE_KEY_PREFIX`: Optional prefix for cache keys (e.g., `myapp:`)
+- `DATABASE_URL`: Database connection URL (e.g., `postgresql+asyncpg://user:pass@host:port/dbname`)
+- `DB_ECHO`: Enable SQL query logging (e.g., `true` or `false`)
+- `DB_POOL_SIZE`: Database connection pool size (e.g., `5`)
 
 ## Structure
 
