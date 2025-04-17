@@ -6,7 +6,7 @@ It handles basic application configuration like app name, debug mode, and versio
 """
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings # type: ignore
 
 
 class BaseAppSettings(BaseSettings):
