@@ -6,7 +6,7 @@ It handles basic application configuration like app name, debug mode, and versio
 """
 
 from pydantic import Field
-from pydantic_settings import BaseSettings # type: ignore
+from pydantic_settings import BaseSettings  # type: ignore
 
 
 class BaseAppSettings(BaseSettings):
@@ -23,6 +23,9 @@ class BaseAppSettings(BaseSettings):
         CACHE_URL: Redis connection URL for caching
         CACHE_DEFAULT_TTL: Default cache TTL in seconds
         CACHE_KEY_PREFIX: Optional prefix for cache keys
+        DATABASE_URL: Database connection URL
+        DB_ECHO: Enable SQL query logging (echo)
+        DB_POOL_SIZE: Connection pool size for the database
     """
 
     APP_NAME: str = Field(default="FastCore")
@@ -39,6 +42,13 @@ class BaseAppSettings(BaseSettings):
     )
     CACHE_KEY_PREFIX: str = Field(
         default="", description="Optional prefix for cache keys"
+    )
+
+    # Database configuration
+    DATABASE_URL: str = Field(default="", description="Database connection URL")
+    DB_ECHO: bool = Field(default=False, description="Enable SQL query logging (echo)")
+    DB_POOL_SIZE: int = Field(
+        default=5, description="Connection pool size for the database"
     )
 
     class Config:

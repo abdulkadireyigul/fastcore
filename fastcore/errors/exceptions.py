@@ -154,3 +154,22 @@ class BadRequestError(AppError):
             status_code=HTTPStatus.BAD_REQUEST,
             details=details,
         )
+
+
+class DBError(AppError):
+    """
+    Exception raised for database-related errors.
+    """
+
+    def __init__(
+        self,
+        message: str = "Database error",
+        code: str = "DB_ERROR",
+        details: Optional[dict] = None,
+    ):
+        super().__init__(
+            message=message,
+            code=code,
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            details=details,
+        )

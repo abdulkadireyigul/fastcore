@@ -11,6 +11,7 @@ from fastapi import FastAPI
 
 from ..cache import setup_cache
 from ..config import BaseAppSettings, get_settings
+from ..db import setup_db
 from ..errors import setup_errors
 from ..logging import get_logger
 
@@ -46,3 +47,5 @@ def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> N
     setup_errors(app, app_settings, logger)
     # Configure caching (optional)
     setup_cache(app, app_settings, logger)
+    # Configure database
+    setup_db(app, app_settings, logger)
