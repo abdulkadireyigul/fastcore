@@ -9,11 +9,11 @@ from typing import Any, Callable, Dict, List, Optional, Set, Union, cast
 
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
-from fastcore.security.auth import JWTAuth, JWTPayload
 from pydantic import BaseModel, ValidationError
 
 from fastcore.errors.exceptions import AppError, AuthenticationError, AuthorizationError
 from fastcore.logging import get_logger
+from fastcore.security.auth import JWTAuth, JWTPayload
 
 # Get a logger for this module
 logger = get_logger(__name__)
