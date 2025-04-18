@@ -9,7 +9,7 @@ from typing import Generic, Optional, TypeVar
 
 from pydantic import BaseModel, Field
 
-from ..metadata import BaseMetadata
+from fastcore.schemas.metadata import BaseMetadata
 
 T = TypeVar("T")
 M = TypeVar("M", bound=BaseMetadata)

@@ -9,11 +9,11 @@ from typing import Optional
 
 from fastapi import FastAPI
 
-from ..cache import setup_cache
-from ..config import BaseAppSettings, get_settings
-from ..db import setup_db
-from ..errors import setup_errors
-from ..logging import get_logger
+from fastcore.cache import setup_cache
+from fastcore.config import BaseAppSettings, get_settings
+from fastcore.db import setup_db
+from fastcore.errors import setup_errors
+from fastcore.logging import get_logger
 
 
 def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> None:

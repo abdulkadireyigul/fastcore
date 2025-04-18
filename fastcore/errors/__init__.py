@@ -5,7 +5,7 @@ This module provides standardized error handling including custom exceptions,
 error responses, and exception handlers.
 """
 
-from .exceptions import (
+from fastcore.errors.exceptions import (
     AppError,
     BadRequestError,
     ConflictError,
@@ -14,8 +14,8 @@ from .exceptions import (
     UnauthorizedError,
     ValidationError,
 )
-from .handlers import register_exception_handlers
-from .manager import setup_errors
+from fastcore.errors.handlers import register_exception_handlers
+from fastcore.errors.manager import setup_errors
 
 __all__ = [
     # Main setup function

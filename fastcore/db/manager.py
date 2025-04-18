@@ -5,9 +5,8 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.config.base import BaseAppSettings
+from fastcore.db.engine import SessionLocal, init_db, shutdown_db
 from fastcore.errors.exceptions import DBError
-
-from .engine import SessionLocal, init_db, shutdown_db
 
 
 def setup_db(

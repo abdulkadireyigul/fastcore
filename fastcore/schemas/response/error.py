@@ -8,8 +8,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-from ..metadata import ResponseMetadata
-from .base import BaseResponse
+from fastcore.schemas.metadata import ResponseMetadata
+from fastcore.schemas.response.base import BaseResponse
 
 
 class ErrorInfo(BaseModel):

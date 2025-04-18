@@ -3,9 +3,9 @@ from typing import Optional
 
 from fastapi import FastAPI
 
-from ..config import BaseAppSettings
-from .backends import RedisCache
-from .base import BaseCache
+from fastcore.cache.backends import RedisCache
+from fastcore.cache.base import BaseCache
+from fastcore.config.base import BaseAppSettings
 
 # Module-level cache instance
 cache: Optional[BaseCache] = None

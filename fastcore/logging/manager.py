@@ -11,8 +11,7 @@ import sys
 from typing import Optional
 
 from fastcore.config.base import BaseAppSettings
-
-from .formatters import JsonFormatter
+from fastcore.logging.formatters import JsonFormatter
 
 
 def setup_logger(

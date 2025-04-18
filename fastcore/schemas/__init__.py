@@ -4,8 +4,8 @@ Common schemas for FastCore v2.
 This module provides reusable Pydantic schemas for API responses and metadata.
 """
 
-from .metadata import BaseMetadata, ResponseMetadata
-from .response import (
+from fastcore.schemas.metadata import BaseMetadata, ResponseMetadata
+from fastcore.schemas.response import (
     BaseResponse,
     DataResponse,
     ErrorInfo,

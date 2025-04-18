@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 import aioredis  # type: ignore
 
-from .base import BaseCache
+from fastcore.cache.base import BaseCache
 
 
 class RedisCache(BaseCache):

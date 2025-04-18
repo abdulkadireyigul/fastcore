@@ -9,8 +9,8 @@ from typing import Generic, TypeVar
 
 from pydantic import Field
 
-from ..metadata import ResponseMetadata
-from .base import BaseResponse
+from fastcore.schemas.metadata import ResponseMetadata
+from fastcore.schemas.response.base import BaseResponse
 
 T = TypeVar("T")
 

@@ -3,7 +3,7 @@ import hashlib
 import json
 from typing import Any, Callable, Optional
 
-from .manager import get_cache
+from fastcore.cache.manager import get_cache
 
 
 def cache(
