@@ -14,7 +14,6 @@ from ..config import BaseAppSettings, get_settings
 from ..db import setup_db
 from ..errors import setup_errors
 from ..logging import get_logger
-from ..security import setup_security
 
 
 def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> None:
@@ -50,5 +49,3 @@ def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> N
     setup_cache(app, app_settings, logger)
     # Configure database
     setup_db(app, app_settings, logger)
-    # Configure security
-    setup_security(app, app_settings, logger)
