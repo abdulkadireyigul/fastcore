@@ -1,15 +1,14 @@
 # Security Module
 
-JWT-based authentication and permission management for FastAPI applications. This module provides tools for password hashing,
-JWT token generation/validation, authentication dependencies, and role-based access control.
+JWT-based authentication for FastAPI applications. This module provides tools for password hashing, JWT token generation/validation ve authentication dependencies.
+
+> **Note:** As of April 2025, role-based access control (RBAC) and permission checks are **disabled**. Only JWT-based authentication is active. All role/permission-related dependencies and examples are not functional unless you re-enable those features in the codebase.
 
 ## Features
 
 - Secure password hashing with bcrypt
 - JWT token generation and validation
 - FastAPI dependencies for protected routes
-- Role-based access control (RBAC)
-- Permission and scope-based authorization
 - No user model dependencies - works with any user representation
 
 ## Configuration
@@ -50,9 +49,7 @@ async def login(username: str, password: str):
     if username == "test" and password == "password":
         # Create token with user data
         token_data = {
-            "sub": username,  # Required
-            "roles": ["admin"],  # For role-based access
-            "permissions": ["users:read", "users:write"]  # For direct permission checks
+            "sub": username  # Required
         }
         return create_token_response(token_data)
     else:
@@ -87,29 +84,6 @@ async def list_items(user_data: Optional[dict] = Depends(get_optional_user_data)
     else:
         # Public access
         return {"items": ["public item 1"]}
-```
-
-### Role-Based Access Control
-
-```python
-from fastcore.security import role_manager, has_role, has_permission
-
-# Setup your roles during application startup
-def setup_roles():
-    # Define roles and their permissions
-    role_manager.add_role("admin", ["users:*", "products:*"])
-    role_manager.add_role("editor", ["users:read", "products:write"])
-    role_manager.add_role("viewer", ["users:read", "products:read"])
-
-# Use role-based protection
-@app.get("/admin", dependencies=[Depends(has_role("admin"))])
-async def admin_panel():
-    return {"message": "Admin panel"}
-
-# Use permission-based protection
-@app.get("/users", dependencies=[Depends(has_permission("users:read"))])
-async def list_users():
-    return {"users": ["user1", "user2"]}
 ```
 
 ### Advanced Token Claims
@@ -153,3 +127,7 @@ async def get_current_user(
     
     return user
 ```
+
+---
+
+**Role-based and permission-based access control is currently disabled. If you want to enable these features, please update the codebase and documentation accordingly.**
