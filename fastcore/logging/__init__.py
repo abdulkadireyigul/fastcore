@@ -6,6 +6,6 @@ that integrates with application settings.
 """
 
 from fastcore.logging.formatters import JsonFormatter
-from fastcore.logging.manager import get_logger, setup_logger
+from fastcore.logging.manager import ensure_logger, get_logger, setup_logger
 
-__all__ = ["get_logger", "setup_logger", "JsonFormatter"]
+__all__ = ["get_logger", "ensure_logger", "setup_logger", "JsonFormatter"]

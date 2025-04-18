@@ -1,10 +1,10 @@
 import json
-import logging
 from typing import Any, Optional
 
 import aioredis  # type: ignore
 
 from fastcore.cache.base import BaseCache
+from fastcore.logging import ensure_logger  # Python logging yerine kendi modülümüz
 
 
 class RedisCache(BaseCache):
@@ -17,12 +17,12 @@ class RedisCache(BaseCache):
         url: str,
         default_ttl: int,
         prefix: str = "",
-        logger: Optional[logging.Logger] = None,
+        logger: Optional[object] = None,
     ):
         self._url = url
         self._default_ttl = default_ttl
         self._prefix = prefix
-        self._logger = logger or logging.getLogger(__name__)
+        self._logger = ensure_logger(logger, __name__)
         self._redis: Optional[aioredis.Redis] = None
 
     async def init(self) -> None:

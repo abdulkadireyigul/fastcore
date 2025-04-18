@@ -1,10 +1,10 @@
-import logging
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.errors.exceptions import DBError, NotFoundError
+from fastcore.logging.manager import ensure_logger
 
 ModelType = TypeVar("ModelType")
 
@@ -17,7 +17,7 @@ class BaseRepository(Generic[ModelType]):
     def __init__(self, model: Type[ModelType], session: AsyncSession) -> None:
         self.model = model
         self.session = session
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = ensure_logger(None, self.__class__.__name__, None)
 
     async def get_by_id(self, id: Any) -> ModelType:
         """Retrieve a single record by primary key."""

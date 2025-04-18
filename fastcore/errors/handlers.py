@@ -5,7 +5,6 @@ This module provides exception handlers that convert application exceptions
 into standardized API responses using the schemas module.
 """
 
-import logging
 import traceback
 from typing import Any, Dict, List, Optional
 
@@ -16,6 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
 from fastcore.errors.exceptions import AppError
+from fastcore.logging import ensure_logger
 from fastcore.schemas import ErrorInfo, ErrorResponse
 
 
@@ -175,7 +175,7 @@ async def pydantic_validation_handler(
 
 
 async def http_exception_handler(
-    request: Request, exc: Exception, logger: Optional[logging.Logger] = None
+    request: Request, exc: Exception, logger: Optional[object] = None
 ) -> JSONResponse:
     """
     Generic exception handler for unhandled exceptions.
@@ -188,8 +188,8 @@ async def http_exception_handler(
     Returns:
         JSON response with generic error message
     """
-    # Log the exception with traceback for debugging
-    log = logger or logging
+    # ensure_logger kullanarak tutarlı logging
+    log = ensure_logger(logger, __name__)
     log.error(f"Unhandled exception: {str(exc)}")
     log.error(traceback.format_exc())
 
@@ -206,7 +206,7 @@ async def http_exception_handler(
 
 
 def register_exception_handlers(
-    app: FastAPI, logger: Optional[logging.Logger] = None, debug: bool = False
+    app: FastAPI, logger: Optional[object] = None, debug: bool = False
 ) -> None:
     """
     Register all exception handlers with a FastAPI application.

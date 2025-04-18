@@ -80,3 +80,32 @@ def get_logger(
         debug = bool(settings.DEBUG)
 
     return setup_logger(name, debug=debug, json_format=json_format)
+
+
+def ensure_logger(
+    logger: Optional[logging.Logger] = None,
+    name: str = None,
+    settings: Optional[BaseAppSettings] = None,
+    json_format: bool = False,
+) -> logging.Logger:
+    """
+    Ensure a logger instance is available by either using the provided one or creating a new one.
+
+    This function standardizes the logger fallback mechanism used throughout the application.
+
+    Args:
+        logger: An existing logger instance to use if provided
+        name: Module name (usually __name__) for creating a new logger if needed
+        settings: Optional application settings
+        json_format: If True, outputs logs in JSON format when creating a new logger
+
+    Returns:
+        Either the provided logger or a newly created one
+    """
+    if logger:
+        return logger
+
+    if not name:
+        raise ValueError("Module name must be provided when logger is not specified")
+
+    return get_logger(name, settings, json_format)
