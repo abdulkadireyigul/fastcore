@@ -7,12 +7,12 @@ that require authentication.
 
 from typing import Any, Dict, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
 from fastcore.errors.exceptions import UnauthorizedError
 
-from .auth import decode_token
+from .jwt import decode_token
 
 # Configure the OAuth2 password bearer scheme for token extraction from headers
 oauth2_scheme = OAuth2PasswordBearer(

@@ -8,11 +8,11 @@ import logging
 from typing import Dict, List, Optional, Union
 
 from fastapi import FastAPI
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.config.base import BaseAppSettings
 from fastcore.db import get_db
-from fastcore.security.permissions import (
+
+from .authorization.permissions import (
     Permission as SecurityPermission,  # Rename to avoid confusion with DB model
 )
 
@@ -33,7 +33,7 @@ async def init_role_db(
 
     try:
         # Add roles directly to database
-        from fastcore.security.permissions import role_manager
+        from .authorization.permissions import role_manager
 
         for role_name, permissions in default_roles.items():
             try:

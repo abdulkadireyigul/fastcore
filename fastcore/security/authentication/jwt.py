@@ -6,7 +6,7 @@ in a way that is not tied to any specific user model or schema.
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import jwt
 

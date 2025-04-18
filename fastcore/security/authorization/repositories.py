@@ -7,10 +7,9 @@ These repositories provide database operations for roles and permissions.
 from typing import List, Optional
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.db.repository import BaseRepository
-from fastcore.errors.exceptions import ConflictError, NotFoundError
+from fastcore.errors.exceptions import NotFoundError
 from fastcore.models.security import Permission, Role
 
 
