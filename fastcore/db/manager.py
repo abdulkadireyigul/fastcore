@@ -6,13 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fastcore.config.base import BaseAppSettings
 from fastcore.db.engine import SessionLocal, init_db, shutdown_db
 from fastcore.errors.exceptions import DBError
-from fastcore.logging import ensure_logger  # Python logging yerine kendi modülümüz
+from fastcore.logging import Logger, ensure_logger
 
 
 def setup_db(
     app: FastAPI,
     settings: BaseAppSettings,
-    logger: Optional[object] = None,
+    logger: Optional[Logger] = None,
 ) -> None:
     """
     Configure database lifecycle for FastAPI application.

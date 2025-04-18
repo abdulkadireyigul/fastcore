@@ -4,7 +4,7 @@ from typing import Any, Optional
 import aioredis  # type: ignore
 
 from fastcore.cache.base import BaseCache
-from fastcore.logging import ensure_logger  # Python logging yerine kendi modülümüz
+from fastcore.logging import Logger, ensure_logger
 
 
 class RedisCache(BaseCache):
@@ -17,7 +17,7 @@ class RedisCache(BaseCache):
         url: str,
         default_ttl: int,
         prefix: str = "",
-        logger: Optional[object] = None,
+        logger: Optional[Logger] = None,
     ):
         self._url = url
         self._default_ttl = default_ttl

@@ -12,14 +12,14 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from fastcore.config.base import BaseAppSettings
-from fastcore.logging import ensure_logger  # Python logging yerine kendi modülümüz
+from fastcore.logging import Logger, ensure_logger
 
 # Module-level engine and session factory
 engine: Optional[AsyncEngine] = None
 SessionLocal: Optional[async_sessionmaker[AsyncSession]] = None
 
 
-async def init_db(settings: BaseAppSettings, logger: Optional[object] = None) -> None:
+async def init_db(settings: BaseAppSettings, logger: Optional[Logger] = None) -> None:
     """
     Initialize the database engine and session factory.
 
@@ -45,7 +45,7 @@ async def init_db(settings: BaseAppSettings, logger: Optional[object] = None) ->
     log.debug("Database engine and session factory initialized")
 
 
-async def shutdown_db(logger: Optional[object] = None) -> None:
+async def shutdown_db(logger: Optional[Logger] = None) -> None:
     """
     Dispose of the database engine.
 

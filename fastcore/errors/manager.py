@@ -11,13 +11,13 @@ from fastapi import FastAPI
 
 from fastcore.config.base import BaseAppSettings
 from fastcore.errors.handlers import register_exception_handlers
-from fastcore.logging import ensure_logger
+from fastcore.logging import Logger, ensure_logger
 
 
 def setup_errors(
     app: FastAPI,
     settings: Optional[BaseAppSettings] = None,
-    logger: Optional[object] = None,
+    logger: Optional[Logger] = None,
 ) -> None:
     """
     Configure error handling for a FastAPI application.

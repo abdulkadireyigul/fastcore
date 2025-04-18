@@ -8,10 +8,12 @@ logging setup across different environments.
 
 import logging
 import sys
-from typing import Optional
+from typing import Optional, Union
 
 from fastcore.config.base import BaseAppSettings
 from fastcore.logging.formatters import JsonFormatter
+
+Logger = Union[logging.Logger, object]
 
 
 def setup_logger(
@@ -20,7 +22,7 @@ def setup_logger(
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     debug: bool = False,
     json_format: bool = False,
-) -> logging.Logger:
+) -> Logger:
     """
     Create and configure a logger instance.
 
@@ -62,7 +64,7 @@ def setup_logger(
 
 def get_logger(
     name: str, settings: Optional[BaseAppSettings] = None, json_format: bool = False
-) -> logging.Logger:
+) -> Logger:
     """
     Get a configured logger instance.
 
@@ -83,11 +85,11 @@ def get_logger(
 
 
 def ensure_logger(
-    logger: Optional[logging.Logger] = None,
+    logger: Optional[Logger] = None,
     name: str = None,
     settings: Optional[BaseAppSettings] = None,
     json_format: bool = False,
-) -> logging.Logger:
+) -> Logger:
     """
     Ensure a logger instance is available by either using the provided one or creating a new one.
 

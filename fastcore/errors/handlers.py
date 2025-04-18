@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
 from fastcore.errors.exceptions import AppError
-from fastcore.logging import ensure_logger
+from fastcore.logging import Logger, ensure_logger
 from fastcore.schemas import ErrorInfo, ErrorResponse
 
 
@@ -175,7 +175,7 @@ async def pydantic_validation_handler(
 
 
 async def http_exception_handler(
-    request: Request, exc: Exception, logger: Optional[object] = None
+    request: Request, exc: Exception, logger: Optional[Logger] = None
 ) -> JSONResponse:
     """
     Generic exception handler for unhandled exceptions.
@@ -206,7 +206,7 @@ async def http_exception_handler(
 
 
 def register_exception_handlers(
-    app: FastAPI, logger: Optional[object] = None, debug: bool = False
+    app: FastAPI, logger: Optional[Logger] = None, debug: bool = False
 ) -> None:
     """
     Register all exception handlers with a FastAPI application.

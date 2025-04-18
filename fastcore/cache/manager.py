@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastcore.cache.backends import RedisCache
 from fastcore.cache.base import BaseCache
 from fastcore.config.base import BaseAppSettings
-from fastcore.logging import ensure_logger  # Python logging yerine kendi modülümüz
+from fastcore.logging import Logger, ensure_logger
 
 # Module-level cache instance
 cache: Optional[BaseCache] = None
@@ -23,7 +23,7 @@ async def get_cache() -> BaseCache:
 def setup_cache(
     app: FastAPI,
     settings: BaseAppSettings,
-    logger: Optional[object] = None,
+    logger: Optional[Logger] = None,
 ) -> None:
     """
     Configure cache lifecycle for FastAPI application.
