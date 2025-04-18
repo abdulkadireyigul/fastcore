@@ -13,7 +13,7 @@ from fastcore.cache import setup_cache
 from fastcore.config import BaseAppSettings, get_settings
 from fastcore.db import setup_db
 from fastcore.errors import setup_errors
-from fastcore.logging import get_logger
+from fastcore.logging.manager import ensure_logger
 
 
 def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> None:
@@ -32,7 +32,8 @@ def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> N
     app_settings = settings or get_settings()
 
     # Get logger for error handling
-    logger = get_logger(__name__, app_settings)
+    # logger = get_logger(__name__, app_settings)
+    logger = ensure_logger(None, __name__, app_settings)
 
     # Configure title and version if not already set
     if not app.title:

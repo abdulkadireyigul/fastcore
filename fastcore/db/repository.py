@@ -17,7 +17,7 @@ class BaseRepository(Generic[ModelType]):
     def __init__(self, model: Type[ModelType], session: AsyncSession) -> None:
         self.model = model
         self.session = session
-        self.logger = ensure_logger(None, self.__class__.__name__, None)
+        self.logger = ensure_logger(None, self.__class__.__name__)
 
     async def get_by_id(self, id: Any) -> ModelType:
         """Retrieve a single record by primary key."""

@@ -41,7 +41,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     if SessionLocal is None:
         raise DBError(message="Database not initialized")
 
-    log = ensure_logger(None, __name__, None)
+    log = ensure_logger(None, __name__)
 
     async with SessionLocal() as session:
         try:
