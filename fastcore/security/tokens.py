@@ -480,76 +480,76 @@ async def revoke_token(token: str, session: AsyncSession) -> None:
         raise DBError(message=f"Error revoking token", details={"error": str(e)})
 
 
-async def revoke_all_tokens(
-    user_id: str,
-    session: AsyncSession,
-    exclude_current: bool = False,
-    current_token_id: Optional[str] = None,
-) -> None:
-    """
-    Revoke all tokens for a user.
+# async def revoke_all_tokens(
+#     user_id: str,
+#     session: AsyncSession,
+#     exclude_current: bool = False,
+#     current_token_id: Optional[str] = None,
+# ) -> None:
+#     """
+#     Revoke all tokens for a user.
 
-    Args:
-        user_id: The user ID to revoke tokens for
-        session: Database session for token operations
-        exclude_current: Whether to exclude the current token from revocation
-        current_token_id: The current token ID if exclude_current is True
-    """
-    repo = TokenRepository(Token, session)
+#     Args:
+#         user_id: The user ID to revoke tokens for
+#         session: Database session for token operations
+#         exclude_current: Whether to exclude the current token from revocation
+#         current_token_id: The current token ID if exclude_current is True
+#     """
+#     repo = TokenRepository(Token, session)
 
-    if exclude_current and not current_token_id:
-        # If we're supposed to exclude the current token but don't have its ID,
-        # extract it from the authentication header (would need to be implemented)
-        raise ValueError(
-            "Current token ID must be provided when exclude_current is True"
-        )
+#     if exclude_current and not current_token_id:
+#         # If we're supposed to exclude the current token but don't have its ID,
+#         # extract it from the authentication header (would need to be implemented)
+#         raise ValueError(
+#             "Current token ID must be provided when exclude_current is True"
+#         )
 
-    # Exclude the current token from revocation if requested
-    token_to_exclude = current_token_id if exclude_current else None
+#     # Exclude the current token from revocation if requested
+#     token_to_exclude = current_token_id if exclude_current else None
 
-    await repo.revoke_all_user_tokens(user_id, token_to_exclude)
-
-
-async def revoke_all_user_tokens(
-    user_id: str,
-    session: AsyncSession,
-) -> None:
-    """
-    Revoke all tokens for a specific user across all devices.
-
-    This function should be called when a user changes their password,
-    when suspicious activity is detected, or when a complete user logout
-    is required.
-
-    Args:
-        user_id: The user ID to revoke tokens for
-        session: Database session for token operations
-    """
-    repo = TokenRepository(Token, session)
-    await repo.revoke_all_user_tokens(user_id, exclude_token_id=None)
-    logger.info(f"Revoked all tokens for user {user_id}")
+#     await repo.revoke_all_user_tokens(user_id, token_to_exclude)
 
 
-async def extract_token_id(token: str) -> str:
-    """
-    Extract the token ID (jti claim) from a JWT token.
+# async def revoke_all_user_tokens(
+#     user_id: str,
+#     session: AsyncSession,
+# ) -> None:
+#     """
+#     Revoke all tokens for a specific user across all devices.
 
-    Args:
-        token: The JWT token
+#     This function should be called when a user changes their password,
+#     when suspicious activity is detected, or when a complete user logout
+#     is required.
 
-    Returns:
-        The token ID as a string
+#     Args:
+#         user_id: The user ID to revoke tokens for
+#         session: Database session for token operations
+#     """
+#     repo = TokenRepository(Token, session)
+#     await repo.revoke_all_user_tokens(user_id, exclude_token_id=None)
+#     logger.info(f"Revoked all tokens for user {user_id}")
 
-    Raises:
-        InvalidTokenError: If the token is malformed or missing the jti claim
-    """
-    payload = await decode_token(token)
-    token_id = payload.get("jti")
 
-    if not token_id:
-        raise InvalidTokenError(
-            message="Token missing required 'jti' claim",
-            details={"error": "Missing jti claim"},
-        )
+# async def extract_token_id(token: str) -> str:
+#     """
+#     Extract the token ID (jti claim) from a JWT token.
 
-    return token_id
+#     Args:
+#         token: The JWT token
+
+#     Returns:
+#         The token ID as a string
+
+#     Raises:
+#         InvalidTokenError: If the token is malformed or missing the jti claim
+#     """
+#     payload = await decode_token(token)
+#     token_id = payload.get("jti")
+
+#     if not token_id:
+#         raise InvalidTokenError(
+#             message="Token missing required 'jti' claim",
+#             details={"error": "Missing jti claim"},
+#         )
+
+#     return token_id

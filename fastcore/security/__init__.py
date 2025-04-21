@@ -27,7 +27,6 @@ from fastcore.security.tokens import (
     create_token_pair,
     decode_token,
     refresh_access_token,
-    revoke_all_tokens,
     revoke_token,
     validate_token,
 )
