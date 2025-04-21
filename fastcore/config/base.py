@@ -5,7 +5,10 @@ This module provides the base settings class that other settings classes inherit
 It handles basic application configuration like app name, debug mode, and version.
 """
 
-from pydantic import Field
+import secrets
+from typing import List, Optional
+
+from pydantic import Field, validator
 from pydantic_settings import BaseSettings  # type: ignore
 
 
@@ -26,6 +29,13 @@ class BaseAppSettings(BaseSettings):
         DATABASE_URL: Database connection URL
         DB_ECHO: Enable SQL query logging (echo)
         DB_POOL_SIZE: Connection pool size for the database
+        JWT_SECRET_KEY: Secret key for JWT token signing
+        JWT_ALGORITHM: Algorithm used for JWT token signing
+        JWT_ACCESS_TOKEN_EXPIRE_MINUTES: Expiration time for access tokens in minutes
+        JWT_REFRESH_TOKEN_EXPIRE_DAYS: Expiration time for refresh tokens in days
+        JWT_AUDIENCE: Audience claim for JWT tokens
+        JWT_ISSUER: Issuer claim for JWT tokens
+        JWT_ALLOWED_AUDIENCES: List of allowed audience values for token validation
     """
 
     APP_NAME: str = Field(default="FastCore")
@@ -50,6 +60,77 @@ class BaseAppSettings(BaseSettings):
     DB_POOL_SIZE: int = Field(
         default=5, description="Connection pool size for the database"
     )
+
+    # Security configuration
+    JWT_SECRET_KEY: str = Field(
+        default="",  # Empty default to encourage explicit setting
+        description="Secret key for signing JWT tokens",
+    )
+    JWT_ALGORITHM: str = Field(
+        default="HS256", description="Algorithm used for JWT token signing"
+    )
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(
+        default=30, description="Expiration time for access tokens in minutes"
+    )
+    JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = Field(
+        default=7, description="Expiration time for refresh tokens in days"
+    )
+    JWT_AUDIENCE: Optional[str] = Field(
+        default=None, description="Audience claim for JWT tokens"
+    )
+    JWT_ISSUER: Optional[str] = Field(
+        default=None, description="Issuer claim for JWT tokens"
+    )
+    JWT_ALLOWED_AUDIENCES: List[str] = Field(
+        default_factory=list,
+        description="List of allowed audience values for token validation",
+    )
+
+    @validator("JWT_AUDIENCE", "JWT_ISSUER", pre=True)
+    def set_default_aud_iss(cls, value, values):
+        """Set default audience and issuer based on app name if not provided."""
+        if value is None:
+            # Use the app name as default audience/issuer if not set
+            app_name = values.get("APP_NAME", "FastCore")
+            return app_name.lower()
+        return value
+
+    @validator("JWT_ALLOWED_AUDIENCES", pre=True)
+    def set_default_allowed_audiences(cls, value, values):
+        """Set the default allowed audiences list if not provided."""
+        if not value:
+            # Include the default audience in the allowed list
+            audience = values.get("JWT_AUDIENCE")
+            if audience:
+                return [audience]
+        return value
+
+    @validator("JWT_SECRET_KEY", pre=True)
+    def generate_jwt_secret_if_empty(cls, value, values):
+        """
+        Generate a secure random JWT secret key if not provided.
+
+        In development, this will generate a random key for convenience.
+        In production, it's strongly recommended to set this explicitly.
+        """
+        if not value:
+            # Generate a secure random key if not provided
+            is_debug = values.get("DEBUG", False)
+            if is_debug:
+                # In debug mode, generate a random key but warn
+                new_key = secrets.token_hex(32)
+                print(
+                    "WARNING: Using auto-generated JWT_SECRET_KEY. "
+                    "This is acceptable for development but not for production."
+                )
+                return new_key
+            else:
+                # In production, require explicit setting
+                raise ValueError(
+                    "JWT_SECRET_KEY must be explicitly set in production. "
+                    "Generate a secure key with: python -c 'import secrets; print(secrets.token_hex(32))'"
+                )
+        return value
 
     class Config:
         env_file = ".env"

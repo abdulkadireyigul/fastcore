@@ -14,6 +14,7 @@ from fastcore.config import BaseAppSettings, get_settings
 from fastcore.db import setup_db
 from fastcore.errors import setup_errors
 from fastcore.logging.manager import ensure_logger
+from fastcore.security import setup_security
 
 
 def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> None:
@@ -50,3 +51,5 @@ def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> N
     setup_cache(app, app_settings, logger)
     # Configure database
     setup_db(app, app_settings, logger)
+    # Configure security
+    setup_security(app, app_settings)
