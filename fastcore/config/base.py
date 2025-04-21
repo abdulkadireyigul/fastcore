@@ -9,7 +9,11 @@ import secrets
 from typing import List, Optional
 
 from pydantic import Field, validator
-from pydantic_settings import BaseSettings  # type: ignore
+from pydantic_settings import BaseSettings
+
+from fastcore.logging import ensure_logger
+
+logger = ensure_logger(None, __name__, None)
 
 
 class BaseAppSettings(BaseSettings):
@@ -55,7 +59,7 @@ class BaseAppSettings(BaseSettings):
     )
 
     # Database configuration
-    DATABASE_URL: str = Field(default="", description="Database connection URL")
+    DATABASE_URL: str = Field(default=None, description="Database connection URL")
     DB_ECHO: bool = Field(default=False, description="Enable SQL query logging (echo)")
     DB_POOL_SIZE: int = Field(
         default=5, description="Connection pool size for the database"
@@ -119,10 +123,14 @@ class BaseAppSettings(BaseSettings):
             if is_debug:
                 # In debug mode, generate a random key but warn
                 new_key = secrets.token_hex(32)
-                print(
+                logger.warning(
                     "WARNING: Using auto-generated JWT_SECRET_KEY. "
                     "This is acceptable for development but not for production."
                 )
+                # print(
+                #     "WARNING: Using auto-generated JWT_SECRET_KEY. "
+                #     "This is acceptable for development but not for production."
+                # )
                 return new_key
             else:
                 # In production, require explicit setting

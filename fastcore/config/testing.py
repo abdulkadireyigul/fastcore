@@ -21,4 +21,4 @@ class TestingSettings(BaseAppSettings):
     """
 
     DEBUG: bool = True
-    DATABASE_URL: str = "sqlite:///./test.db"
+    DATABASE_URL: str = "sqlite:///:memory:"
