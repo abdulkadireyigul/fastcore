@@ -52,4 +52,4 @@ def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> N
     # Configure database
     setup_db(app, app_settings, logger)
     # Configure security
-    setup_security(app, app_settings)
+    setup_security(app, app_settings, logger)
