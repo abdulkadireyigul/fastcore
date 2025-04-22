@@ -60,6 +60,43 @@ Each submodule includes a detailed README in its folder:
 - `fastcore/schemas/README.md`
 - `fastcore/errors/README.md`
 - `fastcore/cache/README.md`
+- `fastcore/db/README.md`
+- `fastcore/security/README.md`
+- `fastcore/middleware/README.md`
+- `fastcore/factory/README.md`
+
+## Versioning
+
+FastCore follows [Semantic Versioning](https://semver.org/) (SemVer) for version numbering:
+
+- **MAJOR** version (x.0.0) - Incompatible API changes
+- **MINOR** version (0.x.0) - Functionality added in a backward-compatible manner
+- **PATCH** version (0.0.x) - Backward-compatible bug fixes
+
+Current version: **0.1.0** (API v1)
+
+### Version Compatibility
+
+You can check the current version and API version in your code:
+
+```python
+import fastcore
+
+print(fastcore.__version__)  # Package version, e.g., "0.1.0"
+print(fastcore.__api_version__)  # API version, e.g., "v1"
+```
+
+### Breaking Changes
+
+Breaking changes are documented in the [CHANGELOG.md](CHANGELOG.md) file. As this is a pre-1.0 library:
+
+- **0.x** releases may contain breaking changes as the API evolves
+- Once we reach **1.0.0**, breaking changes will only occur in major version bumps
+
+### Minimum Requirements
+
+- Python: 3.8+
+- FastAPI: 0.100.0+
 
 ## Contributing
 

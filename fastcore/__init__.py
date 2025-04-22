@@ -14,13 +14,22 @@ Usage:
 """
 
 __version__ = "0.1.0"
+__api_version__ = "v1"
+__author__ = "Abdulkadir Eyigül"
+__license__ = "MIT"
+__min_python_version__ = "3.8"
+__min_fastapi_version__ = "0.100.0"
 
+# Version compatibility information
+# The tuple format is (major, minor, patch)
+__version_info__ = (0, 1, 0)
+__api_version_info__ = (1, 0, 0)
+
+# Public API exports
 from fastcore.cache import get_cache
 from fastcore.cache.decorators import cache
 from fastcore.config import BaseAppSettings, get_settings
 from fastcore.errors import AppError, setup_errors
-
-# Public API exports
 from fastcore.factory import configure_app
 from fastcore.logging import get_logger
 from fastcore.schemas import DataResponse, ErrorResponse, ResponseModel
