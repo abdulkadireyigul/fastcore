@@ -15,6 +15,7 @@ from fastcore.db import setup_db
 from fastcore.errors import setup_errors
 from fastcore.logging.manager import ensure_logger
 from fastcore.middleware import setup_middlewares
+from fastcore.monitoring.manager import setup_monitoring
 from fastcore.security import setup_security
 
 
@@ -56,3 +57,5 @@ def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> N
     setup_security(app, app_settings, logger)
     # Configure middleware (CORS, rate limiting, etc.)
     setup_middlewares(app, app_settings, logger)
+    # Configure monitoring (health checks, metrics, etc.)
+    setup_monitoring(app, app_settings, logger)

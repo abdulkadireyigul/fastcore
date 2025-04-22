@@ -43,6 +43,10 @@ class BaseAppSettings(BaseSettings):
         MIDDLEWARE_CORS_OPTIONS: CORS middleware options (passed to CORSMiddleware)
         RATE_LIMITING_OPTIONS: Rate limiting options (max_requests, window_seconds)
         RATE_LIMITING_BACKEND: Rate limiting backend: "memory" or "redis"
+        HEALTH_PATH: Health check endpoint path
+        HEALTH_INCLUDE_DETAILS: Include detailed health check info in response
+        METRICS_PATH: Prometheus metrics endpoint path
+        METRICS_EXCLUDE_PATHS: List of paths to exclude from metrics collection
     """
 
     APP_NAME: str = Field(default="FastCore")
@@ -109,6 +113,21 @@ class BaseAppSettings(BaseSettings):
     )
     RATE_LIMITING_BACKEND: str = Field(
         default="memory", description='Rate limiting backend: "memory" or "redis"'
+    )
+
+    # Monitoring configuration
+    HEALTH_PATH: str = Field(
+        default="/health", description="Health check endpoint path"
+    )
+    HEALTH_INCLUDE_DETAILS: bool = Field(
+        default=True, description="Include detailed health check info in response"
+    )
+    METRICS_PATH: str = Field(
+        default="/metrics", description="Prometheus metrics endpoint path"
+    )
+    METRICS_EXCLUDE_PATHS: List[str] = Field(
+        default=["/metrics", "/health"],
+        description="List of paths to exclude from metrics collection",
     )
 
     @validator("JWT_AUDIENCE", "JWT_ISSUER", pre=True)
