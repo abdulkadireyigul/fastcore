@@ -1,72 +1,93 @@
 # Config Module
 
-A simple, environment-aware configuration system for FastAPI applications.
+Configuration management for FastAPI applications that provides a simple, environment-aware settings system using Pydantic.
 
 ## Features
 
-- Environment-based configuration management
-- Support for .env files
-- Type-safe settings with Pydantic
-- Pre-configured environments (development, testing, production)
+- Environment-based configuration with development, testing, and production profiles
+- Based on Pydantic for schema validation and type safety
+- Easy access to settings via dependency injection
+- Environment variable loading with proper type conversion
+- Support for `.env` files
+
+## Installation
+
+Requires pydantic and pydantic-settings:
+
+```bash
+pip install pydantic pydantic-settings
+```
 
 ## Usage
 
 ### Basic Usage
 
-```python
-from fastcore.config import settings
-
-# Access settings directly
-app_name = settings.APP_NAME
-debug_mode = settings.DEBUG
-```
-
-### Environment-Specific Settings
-
-The module automatically loads the correct settings based on the `APP_ENV` environment variable:
+In your application, access settings through the dependency:
 
 ```python
-# Set environment variable
-# export APP_ENV=production  # Linux/Mac
-# set APP_ENV=production    # Windows
+from fastapi import FastAPI, Depends
+from fastcore.config import get_settings
 
-from fastcore.config import settings
+app = FastAPI()
 
-# Will use ProductionSettings
-print(settings.DEBUG)  # False
+@app.get("/info")
+async def get_info(settings = Depends(get_settings)):
+    return {
+        "app_name": settings.APP_NAME,
+        "version": settings.VERSION,
+        "debug": settings.DEBUG
+    }
 ```
 
 ### Custom Settings
 
-You can create your own settings by inheriting from BaseAppSettings:
+Create custom settings by extending `BaseAppSettings`:
 
 ```python
 from fastcore.config import BaseAppSettings
 
-class MyCustomSettings(BaseAppSettings):
-    CUSTOM_FIELD: str = "default value"
-    API_KEY: str
+class MyAppSettings(BaseAppSettings):
+    # Add custom settings
+    FEATURE_FLAG_ENABLED: bool = False
+    MAX_ITEMS_PER_PAGE: int = 100
+    
+    # Override base settings
+    APP_NAME: str = "My Custom App"
+```
+
+### Environment-Specific Settings
+
+The config module includes environment-specific settings classes:
+
+```python
+from fastcore.config import get_settings
+from fastcore.config.base import Environment
+
+# Force specific environment
+settings = get_settings(env=Environment.DEVELOPMENT)
 ```
 
 ## Environment Variables
 
-The following environment variables are supported:
+Common environment variables:
 
-- `APP_ENV`: Determines which settings to load (development, testing, production)
-- `APP_NAME`: Override the application name
-- `DEBUG`: Override debug mode
-- `VERSION`: Override version number
-- `CACHE_URL`: Redis connection URL for caching (e.g., `redis://localhost:6379/0`)
-- `CACHE_DEFAULT_TTL`: Default TTL in seconds for cache entries (e.g., `300`)
-- `CACHE_KEY_PREFIX`: Optional prefix for cache keys (e.g., `myapp:`)
-- `DATABASE_URL`: Database connection URL (e.g., `postgresql+asyncpg://user:pass@host:port/dbname`)
-- `DB_ECHO`: Enable SQL query logging (e.g., `true` or `false`)
-- `DB_POOL_SIZE`: Database connection pool size (e.g., `5`)
+- `APP_NAME`: Name of your application
+- `VERSION`: Application version
+- `DEBUG`: Enable debug mode (default: `False` in production)
+- `LOG_LEVEL`: Logging level (default: `INFO`)
+- `DB_URL`: Database connection string
+- `CACHE_URL`: Redis cache connection string
+- `SECRET_KEY`: Secret key for token signing
+- `ALLOWED_ORIGINS`: CORS allowed origins (comma-separated)
 
-## Structure
+## Integration with Factory
 
-- `base.py`: Base settings class
-- `settings.py`: Settings factory and singleton instance
-- `development.py`: Development environment settings
-- `production.py`: Production environment settings
-- `testing.py`: Testing environment settings
+The config module is automatically initialized when using `configure_app`:
+
+```python
+from fastapi import FastAPI
+from fastcore.factory import configure_app
+
+app = FastAPI()
+configure_app(app)  # Will load config from environment
+```

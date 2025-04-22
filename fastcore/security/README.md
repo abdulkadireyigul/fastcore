@@ -1,20 +1,19 @@
 # Security Module
 
-A stateful JWT authentication module for FastAPI applications, providing token management, password utilities, and FastAPI dependencies for route protection.
+Authentication and authorization utilities for FastAPI applications, with JWT token support and password hashing.
 
 ## Features
 
-- Stateful JWT authentication with database-backed token tracking
-- Refresh token functionality for extended sessions
-- Password hashing and verification using bcrypt
-- Token revocation capabilities (logout functionality)
-- Audience validation to prevent token misuse across applications
-- FastAPI dependencies for protecting routes
-- Consistent error handling for security-related exceptions
+- JWT-based authentication with access and refresh tokens
+- Secure password hashing with bcrypt
+- Token revocation support
+- User authentication workflow
+- FastAPI dependencies for protected routes
+- Role-based access control
 
 ## Installation
 
-The security module requires the following dependencies:
+Install the required dependencies:
 
 ```bash
 pip install pyjwt passlib[bcrypt]
@@ -22,177 +21,149 @@ pip install pyjwt passlib[bcrypt]
 
 ## Configuration
 
-Configure security settings via environment variables or programmatically in your settings class:
+Configure security settings through environment variables or settings class:
 
-```env
-JWT_SECRET_KEY=your-secure-secret-key
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
-JWT_AUDIENCE=your-application-id
-JWT_ISSUER=your-authentication-server
+```python
+from fastcore.config import BaseAppSettings
+
+class AppSettings(BaseAppSettings):
+    # Security settings
+    SECRET_KEY: str = "your-secret-key-here"  # Change in production!
+    JWT_ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 ```
 
-Fields on `BaseAppSettings`:
-
-- `JWT_SECRET_KEY`: Secret key for signing JWT tokens (default: `supersecret` - **change in production**)
-- `JWT_ALGORITHM`: Algorithm used for token signing (default: `HS256`)
-- `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`: Access token lifetime in minutes (default: `30`)
-- `JWT_REFRESH_TOKEN_EXPIRE_DAYS`: Refresh token lifetime in days (default: `7`)
-- `JWT_AUDIENCE`: Audience claim for token validation (default: `None` - **specify in production**)
-- `JWT_ISSUER`: Issuer claim for token validation (default: `None` - **specify in production**)
+Common environment variables:
+- `SECRET_KEY`: Secret key used for token signing
+- `JWT_ALGORITHM`: Algorithm used for JWT (default: HS256)
+- `ACCESS_TOKEN_EXPIRE_MINUTES`: Access token lifetime in minutes
+- `REFRESH_TOKEN_EXPIRE_DAYS`: Refresh token lifetime in days
 
 ## Usage
 
-### Factory Integration
+### Password Hashing
 
-In your application factory:
+Securely hash and verify passwords:
+
+```python
+from fastcore.security import get_password_hash, verify_password
+
+# Hash a password
+hashed_password = get_password_hash("user-password")
+
+# Verify a password against a hash
+is_valid = verify_password("user-password", hashed_password)
+```
+
+### Token Generation
+
+Create JWT tokens for authentication:
+
+```python
+from fastcore.security import create_access_token, create_refresh_token
+
+# Generate tokens for a user
+user_data = {"sub": "user@example.com", "user_id": 123}
+access_token = create_access_token(data=user_data)
+refresh_token = create_refresh_token(data=user_data)
+
+# Or create both tokens at once
+tokens = create_token_pair(data=user_data)
+```
+
+### Protected Routes
+
+Secure your API endpoints:
+
+```python
+from fastapi import APIRouter, Depends
+from fastcore.security import get_current_user
+from pydantic import BaseModel
+
+class User(BaseModel):
+    id: int
+    email: str
+    is_active: bool
+
+router = APIRouter()
+
+@router.get("/me", response_model=User)
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
+```
+
+### Token Refresh
+
+Implement token refresh functionality:
+
+```python
+from fastapi import APIRouter, Depends
+from fastcore.security import refresh_token, get_refresh_token_data
+
+router = APIRouter()
+
+@router.post("/refresh")
+async def refresh_access_token(token_data: dict = Depends(get_refresh_token_data)):
+    # This will validate the refresh token and create a new access token
+    new_access_token = refresh_access_token(token_data)
+    return {"access_token": new_access_token, "token_type": "bearer"}
+```
+
+### Custom Authentication
+
+Extend the base authentication class:
+
+```python
+from fastcore.security import BaseUserAuthentication
+from fastcore.db import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+
+class DatabaseUserAuthentication(BaseUserAuthentication):
+    def __init__(self, db: AsyncSession):
+        self.db = db
+        
+    async def authenticate_user(self, username: str, password: str):
+        # Query user from database
+        user = await get_user_by_username(self.db, username)
+        if not user:
+            return None
+            
+        # Verify password
+        if not verify_password(password, user.hashed_password):
+            return None
+            
+        return user
+
+# Use in a login endpoint
+@router.post("/login")
+async def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db)
+):
+    auth = DatabaseUserAuthentication(db)
+    user = await auth.authenticate_user(form_data.username, form_data.password)
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+    # Create tokens for the authenticated user
+    tokens = create_token_pair({"sub": user.email, "user_id": user.id})
+    return {
+        "access_token": tokens["access_token"],
+        "refresh_token": tokens["refresh_token"],
+        "token_type": "bearer"
+    }
+```
+
+## Integration with Factory
+
+Security features are automatically set up when using the application factory:
 
 ```python
 from fastapi import FastAPI
 from fastcore.factory import configure_app
 
 app = FastAPI()
-configure_app(app)  # This will automatically set up the security module
+configure_app(app)  # Sets up security based on app settings
 ```
-
-### Basic Authentication Flow
-
-Create a login endpoint that issues tokens:
-
-```python
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from fastcore.db import get_session
-from fastcore.security import create_token_pair, get_password_hash, verify_password
-
-router = APIRouter()
-
-# Example function to get a user from the database
-async def get_user_by_username(username: str, session: AsyncSession):
-    # This would be your actual database lookup
-    # For example purposes only:
-    if username == "testuser":
-        return {"id": "user1", "username": "testuser", "hashed_password": get_password_hash("password")}
-    return None
-
-@router.post("/login")
-async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    session: AsyncSession = Depends(get_session)
-):
-    user = await get_user_by_username(form_data.username, session)
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Create access and refresh tokens
-    tokens = await create_token_pair({"sub": user["id"]}, session)
-    return tokens  # Returns access_token, refresh_token, and token_type
-```
-
-### Protecting Routes
-
-Use the `get_token_data` or `get_current_user_dependency` dependency to protect routes and extract user information from the token:
-
-```python
-from fastapi import APIRouter, Depends
-from fastcore.security import get_token_data
-
-router = APIRouter()
-
-@router.get("/me")
-async def get_user_info(token_data = Depends(get_token_data)):
-    return token_data  # Contains claims like user_id (sub), etc.
-```
-
-### Token Refresh
-
-Implement a refresh endpoint to get a new access token:
-
-```python
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from fastcore.db import get_session
-from fastcore.security import refresh_access_token
-from fastcore.security.exceptions import ExpiredTokenError, InvalidTokenError, RevokedTokenError
-
-router = APIRouter()
-
-@router.post("/refresh")
-async def refresh_token(
-    refresh_token: str,
-    session: AsyncSession = Depends(get_session)
-):
-    try:
-        new_access_token = await refresh_access_token(refresh_token, session)
-        return {"access_token": new_access_token, "token_type": "bearer"}
-    except (InvalidTokenError, ExpiredTokenError, RevokedTokenError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-```
-
-### Logout
-
-Implement a logout endpoint to revoke tokens:
-
-```python
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from fastcore.db import get_session
-from fastcore.security import revoke_token
-from fastcore.security.exceptions import InvalidTokenError
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-router = APIRouter()
-
-@router.post("/logout")
-async def logout(
-    token: str = Depends(oauth2_scheme),
-    session: AsyncSession = Depends(get_session)
-):
-    try:
-        await revoke_token(token, session)
-        return {"detail": "Successfully logged out"}
-    except InvalidTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-```
-
-## Error Handling
-
-The security module includes specialized exceptions for different security-related errors:
-
-- `InvalidTokenError`: When a token is malformed or invalid
-- `ExpiredTokenError`: When a token has expired
-- `RevokedTokenError`: When a token has been revoked
-- `InvalidCredentialsError`: When authentication credentials are invalid
-
-These exceptions are designed to work with FastAPI's exception handling and can be caught and converted to appropriate HTTP responses.
-
-## Security Best Practices
-
-- Use a strong, random `JWT_SECRET_KEY` in production (never commit secrets to source control).
-- Keep access tokens short-lived (15-30 minutes) and use refresh tokens for extended sessions.
-- Always use HTTPS in production and set cookies with `secure=True` and `httponly=True` if using cookies.
-- Validate all claims (exp, nbf, iss, aud) and use audience/issuer checks in production.
-- Revoke tokens on password change or suspicious activity.
-- Log authentication failures and monitor for unusual patterns.
-
----
-
-> **Note:** Advanced features (multi-device logout, cookie-based refresh, SSO, rate limiting, etc.) and related functions are optional/for advanced usage and are not enabled by default in the main module. For such advanced integrations, you should update your code and documentation accordingly.

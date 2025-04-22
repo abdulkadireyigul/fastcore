@@ -1,64 +1,134 @@
 # Middleware Module
 
-This module provides centralized and extensible middleware management for FastAPI applications. It enables easy integration of common middleware such as CORS and rate limiting, with a focus on consistency, configurability, and production readiness.
+Provides common middleware components for FastAPI applications with consistent configuration.
 
 ## Features
-- Centralized setup of all application middlewares
-- CORS middleware with configurable options
-- Rate limiting middleware with memory and Redis backends
-- Consistent logging and configuration management
-- Extensible structure for adding new middleware types
+
+- CORS configuration with sensible defaults
+- Rate limiting middleware
+- Request timing middleware
+- Centralized middleware setup
+
+## Configuration
+
+Configure middleware through environment variables or settings class:
+
+```python
+from fastcore.config import BaseAppSettings
+
+class AppSettings(BaseAppSettings):
+    # CORS Settings
+    CORS_ALLOW_ORIGINS: str = "*"  # Comma-separated list or "*"
+    CORS_ALLOW_METHODS: str = "GET,POST,PUT,DELETE,OPTIONS"
+    CORS_ALLOW_HEADERS: str = ""  # Empty means allow all
+    CORS_ALLOW_CREDENTIALS: bool = False
+    
+    # Rate Limiting
+    RATE_LIMIT_ENABLED: bool = False
+    RATE_LIMIT_REQUESTS: int = 100
+    RATE_LIMIT_WINDOW_SECONDS: int = 60
+```
 
 ## Usage
 
 ### Factory Integration
-The middleware module is automatically integrated when you use the application factory:
+
+Middleware is automatically set up when using the factory:
 
 ```python
 from fastapi import FastAPI
 from fastcore.factory import configure_app
 
 app = FastAPI()
-configure_app(app)  # This will set up all core modules, including middleware
+configure_app(app)  # Sets up all middleware based on settings
 ```
 
-### Manual Setup
-If you need to customize the setup order or add additional initialization steps:
+### Manual Configuration
+
+Individually configure middleware components:
 
 ```python
 from fastapi import FastAPI
-from fastcore.config import get_settings
-from fastcore.logging import ensure_logger
 from fastcore.middleware import setup_middlewares
+from fastcore.config import get_settings
+from fastcore.logging import get_logger
 
 app = FastAPI()
 settings = get_settings()
-logger = ensure_logger(None, __name__, settings)
+logger = get_logger(__name__, settings)
+
 setup_middlewares(app, settings, logger)
 ```
 
-## Configuration
-Middleware options are managed via your application's config (see `config/base.py`). Example options:
+### CORS Configuration
+
+Configure Cross-Origin Resource Sharing:
 
 ```python
-MIDDLEWARE_CORS_OPTIONS = {
-    "allow_origins": ["*"],
-    "allow_credentials": True,
-    "allow_methods": ["*"],
-    "allow_headers": ["*"],
-}
-RATE_LIMITING_OPTIONS = {"max_requests": 60, "window_seconds": 60}
-RATE_LIMITING_BACKEND = "memory"  # or "redis"
+from fastapi import FastAPI
+from fastcore.middleware.cors import configure_cors
+
+app = FastAPI()
+
+# Simple configuration
+configure_cors(app, allow_origins=["https://frontend.example.com"])
+
+# Advanced configuration
+configure_cors(
+    app,
+    allow_origins=["https://app.example.com", "https://admin.example.com"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+    allow_credentials=True,
+    max_age=3600
+)
 ```
 
-## Extending
-To add new middleware types:
-- Implement your middleware in a new file (e.g., `timing.py`, `i18n.py`).
-- Update `setup_middlewares` in `manager.py` to include your new middleware.
-- Pass `settings` and `logger` for consistency.
+### Rate Limiting
 
-## Logging
-All middleware initialization, configuration, and key runtime events are logged using the application's logger for observability and debugging.
+Protect your API from abuse with rate limiting:
 
-## License
-MIT
+```python
+from fastapi import FastAPI
+from fastcore.middleware.rate_limiting import configure_rate_limiting
+
+app = FastAPI()
+
+# Basic rate limiting
+configure_rate_limiting(app)  # Uses default settings (100 req/minute)
+
+# Custom rate limiting
+configure_rate_limiting(
+    app,
+    limit=50,  # 50 requests per window
+    window_seconds=3600,  # 1 hour window
+    exclude_paths=["/docs", "/redoc", "/health"],  # Paths to exclude
+    key_func=lambda request: request.client.host  # Key function (IP-based)
+)
+```
+
+## Middleware Components
+
+The following middleware components are available:
+
+- **CORS**: Cross-Origin Resource Sharing configuration
+- **Rate Limiting**: Request rate limiting based on client IP or custom key
+- **Request Timing**: Add timing headers to responses
+
+## Integration with Logging
+
+Middleware events are logged through the application logger:
+
+```python
+from fastapi import FastAPI
+from fastcore.logging import get_logger
+from fastcore.middleware import setup_middlewares
+from fastcore.config import get_settings
+
+app = FastAPI()
+settings = get_settings()
+logger = get_logger(__name__, settings)
+
+# Middleware will use this logger for events
+setup_middlewares(app, settings, logger)
+```

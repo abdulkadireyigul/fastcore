@@ -1,157 +1,123 @@
 # Errors Module
 
-Standardized error handling for FastAPI applications.
+Provides standardized error handling and exception management for FastAPI applications.
 
 ## Features
 
-- Custom exception hierarchy for common API errors
-- Automatic conversion of exceptions to standard API responses
-- Integration with FastAPI's exception handling
-- Simple setup with minimal boilerplate
-- Works standalone or integrated with other fastcore modules
+- Consistent error response structure across your API
+- Custom exceptions with status codes, error codes, and messages
+- Global exception handlers registered automatically
+- Debug mode support (detailed errors in development, sanitized in production)
+- Integration with logging system
 
 ## Usage
 
-### Basic Usage
+### Raising Errors
+
+Use the provided exception classes to ensure consistent error handling:
 
 ```python
-from fastapi import FastAPI
-from fastcore.errors import setup_errors, NotFoundError
+from fastapi import APIRouter
+from fastcore.errors import AppError, NotFoundError
 
-app = FastAPI()
+router = APIRouter()
 
-# Setup error handling
-setup_errors(app)
-
-@app.get("/items/{item_id}")
-async def get_item(item_id: int):
-    # Simulate item retrieval logic
-    if item_id != 42:
-        # Raise a custom exception
+@router.get("/items/{item_id}")
+async def get_item(item_id: str):
+    # Example of raising a standard error
+    if not item_exists(item_id):
         raise NotFoundError(
-            resource_type="Item", 
-            resource_id=item_id
+            message=f"Item with ID {item_id} not found",
+            details={"item_id": item_id}
         )
     
-    return {"id": item_id, "name": "Example Item"}
-```
-
-### With Config and Logging Integration
-
-```python
-from fastapi import FastAPI
-from fastcore.config import settings
-from fastcore.logging import get_logger
-from fastcore.errors import setup_errors, ValidationError
-
-app = FastAPI()
-
-# Get logger and setup errors
-logger = get_logger(__name__, settings)
-setup_errors(app, settings=settings, logger=logger)
-
-@app.post("/items/")
-async def create_item(name: str, price: float):
-    if price <= 0:
-        # Raise validation error with field information
-        raise ValidationError(
-            message="Invalid item data",
-            fields=[
-                {
-                    "field": "price",
-                    "message": "Price must be greater than zero",
-                    "code": "INVALID_PRICE"
-                }
-            ]
+    # Or a generic application error
+    if system_overloaded():
+        raise AppError(
+            status_code=503,
+            error_code="SYSTEM_OVERLOADED",
+            message="System is currently overloaded, try again later"
         )
     
-    logger.info(f"Created item: {name}")
-    return {"name": name, "price": price}
+    return get_item_from_db(item_id)
 ```
 
-## Exception Classes
+### Custom Exception Classes
 
-The module provides the following exception classes:
-
-| Exception Class | HTTP Status | Use Case |
-|----------------|-------------|----------|
-| `AppError` | 500 | Base exception class |
-| `ValidationError` | 400 | Data validation errors |
-| `NotFoundError` | 404 | Resource not found |
-| `UnauthorizedError` | 401 | Authentication errors |
-| `ForbiddenError` | 403 | Permission denied |
-| `ConflictError` | 409 | Resource conflicts |
-| `BadRequestError` | 400 | General client errors |
-
-### ValidationError vs BadRequestError
-
-Both `ValidationError` and `BadRequestError` return a 400 HTTP status code but serve different purposes:
-
-- `ValidationError`: Used specifically for data validation failures, typically when request data doesn't match expected schema. It supports detailed field-level error reporting.
-
-- `BadRequestError`: Used for general client-side errors that aren't specifically related to data validation, such as missing parameters, invalid operations, etc.
-
-### Creating Custom Exceptions
-
-You can create custom exceptions by inheriting from `AppError`:
+Create domain-specific exceptions by extending the base classes:
 
 ```python
 from fastcore.errors import AppError
-from http import HTTPStatus
 
-class RateLimitError(AppError):
-    """Exception raised when a rate limit is exceeded."""
-    
+class PaymentError(AppError):
     def __init__(
         self,
-        message: str = "Rate limit exceeded",
-        retry_after: int = 60,
-        **kwargs
+        message: str = "Payment processing failed",
+        error_code: str = "PAYMENT_ERROR",
+        status_code: int = 400,
+        details: dict = None
     ):
-        details = kwargs.pop("details", {}) or {}
-        details["retry_after"] = retry_after
-        
         super().__init__(
             message=message,
-            code="RATE_LIMIT_EXCEEDED",
-            status_code=HTTPStatus.TOO_MANY_REQUESTS,
-            details=details,
-            **kwargs
+            error_code=error_code,
+            status_code=status_code,
+            details=details
         )
 ```
 
-## Response Format
+### Automatic Error Handling
 
-Errors are automatically converted into standardized API responses using the `ErrorResponse` schema:
+Error handlers are registered when you use the factory:
+
+```python
+from fastapi import FastAPI
+from fastcore.factory import configure_app
+
+app = FastAPI()
+configure_app(app)  # Will register all error handlers
+```
+
+Or you can register them manually:
+
+```python
+from fastapi import FastAPI
+from fastcore.errors import setup_errors
+from fastcore.config import get_settings
+
+app = FastAPI()
+settings = get_settings()
+setup_errors(app, settings)
+```
+
+## Error Response Format
+
+All errors follow this standard JSON format:
 
 ```json
 {
-  "success": false,
-  "message": "Resource not found",
-  "errors": [
-    {
-      "code": "NOT_FOUND",
-      "message": "Item with id '123' not found",
-      "field": null
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Item with ID 123 not found",
+    "details": {
+      "item_id": "123"
     }
-  ],
-  "metadata": {
-    "timestamp": "2025-04-16T12:34:56"
   }
 }
 ```
 
-## API Reference
+## Built-in Exception Types
 
-### Functions
+- `AppError`: Base exception for all application errors
+- `ValidationError`: Input validation errors (status 422)
+- `NotFoundError`: Resource not found errors (status 404)
+- `UnauthorizedError`: Authentication errors (status 401)
+- `ForbiddenError`: Permission errors (status 403)
+- `ConflictError`: Resource conflicts (status 409)
+- `RateLimitError`: Rate limit exceeded (status 429)
+- `ServerError`: Internal server errors (status 500)
 
-- `setup_errors(app, settings=None, logger=None)` - Main setup function
-- `register_exception_handlers(app, logger=None, debug=False)` - Register exception handlers
+## Integration with Logging
 
-### Exception Classes
-
-All exception classes have the following attributes:
-- `message`: Human-readable error message
-- `code`: Error code string identifier
-- `status_code`: HTTP status code
-- `details`: Dictionary with additional error details
+All exceptions are automatically logged with appropriate severity levels:
+- Client errors (4xx) are logged as warnings
+- Server errors (5xx) are logged as errors
