@@ -10,13 +10,13 @@ import time
 from typing import Any, Callable, Dict, List, Optional, TypeVar, cast
 
 from fastapi import FastAPI, Request, Response
-from fastcore.middleware.timing import TimingMiddleware
 from fastcore.monitoring.metrics import Histogram, MetricCollector, get_metrics
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.routing import Match
 from starlette.types import ASGIApp
 
 from fastcore.logging import get_logger
+from fastcore.middleware.timing import TimingMiddleware
 
 logger = get_logger(__name__)
 

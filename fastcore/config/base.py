@@ -40,6 +40,9 @@ class BaseAppSettings(BaseSettings):
         JWT_AUDIENCE: Audience claim for JWT tokens
         JWT_ISSUER: Issuer claim for JWT tokens
         JWT_ALLOWED_AUDIENCES: List of allowed audience values for token validation
+        MIDDLEWARE_CORS_OPTIONS: CORS middleware options (passed to CORSMiddleware)
+        RATE_LIMITING_OPTIONS: Rate limiting options (max_requests, window_seconds)
+        RATE_LIMITING_BACKEND: Rate limiting backend: "memory" or "redis"
     """
 
     APP_NAME: str = Field(default="FastCore")
@@ -88,6 +91,24 @@ class BaseAppSettings(BaseSettings):
     JWT_ALLOWED_AUDIENCES: List[str] = Field(
         default_factory=list,
         description="List of allowed audience values for token validation",
+    )
+
+    # Middleware configuration
+    MIDDLEWARE_CORS_OPTIONS: dict = Field(
+        default_factory=lambda: {
+            "allow_origins": ["*"],
+            "allow_credentials": True,
+            "allow_methods": ["*"],
+            "allow_headers": ["*"],
+        },
+        description="CORS middleware options (passed to CORSMiddleware)",
+    )
+    RATE_LIMITING_OPTIONS: dict = Field(
+        default_factory=lambda: {"max_requests": 60, "window_seconds": 60},
+        description="Rate limiting options (max_requests, window_seconds)",
+    )
+    RATE_LIMITING_BACKEND: str = Field(
+        default="memory", description='Rate limiting backend: "memory" or "redis"'
     )
 
     @validator("JWT_AUDIENCE", "JWT_ISSUER", pre=True)

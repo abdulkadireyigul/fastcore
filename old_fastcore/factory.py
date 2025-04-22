@@ -10,6 +10,14 @@ from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
+from fastcore.cache.manager import configure_cache
+from fastcore.config.app import AppSettings
+from fastcore.config.base import Environment
+from fastcore.db.session import initialize_db
+from fastcore.errors.exceptions import AppError
+from fastcore.errors.handlers import exception_handlers
+from fastcore.logging import configure_logging, get_logger
 from fastcore.middleware import (
     CORSConfig,
     I18nConfig,
@@ -23,14 +31,6 @@ from fastcore.middleware import (
     configure_trusted_hosts,
 )
 from fastcore.middleware.manager import configure_environment_middleware
-
-from fastcore.cache.manager import configure_cache
-from fastcore.config.app import AppSettings
-from fastcore.config.base import Environment
-from fastcore.db.session import initialize_db
-from fastcore.errors.exceptions import AppError
-from fastcore.errors.handlers import exception_handlers
-from fastcore.logging import configure_logging, get_logger
 
 # Logger for this module
 logger = get_logger(__name__)
