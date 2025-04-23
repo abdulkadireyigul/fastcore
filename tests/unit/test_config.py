@@ -1,3 +1,16 @@
+"""
+Unit tests for the config module.
+
+These tests cover:
+- Default and environment-based settings loading
+- JWT secret key logic (auto-generation, required in production)
+- Field validators for JWT audience and allowed audiences
+- Environment selection logic (development, testing, production)
+- Edge cases for explicit values
+
+All tests use fixtures and monkeypatching to ensure isolation and avoid code duplication.
+"""
+
 import pytest
 
 from src.config.base import BaseAppSettings
