@@ -1,7 +1,6 @@
 import pytest
 
 from src.config.base import BaseAppSettings
-from src.config.settings import get_settings
 
 
 @pytest.fixture(autouse=True)
