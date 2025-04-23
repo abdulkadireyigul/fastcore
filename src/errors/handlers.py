@@ -17,6 +17,7 @@ from pydantic import ValidationError as PydanticValidationError
 from src.errors.exceptions import AppError
 from src.logging import Logger, ensure_logger
 from src.schemas import ErrorInfo, ErrorResponse
+from src.schemas.metadata import ResponseMetadata
 
 
 def create_error_response(
@@ -24,6 +25,7 @@ def create_error_response(
     message: str,
     code: str = "ERROR",
     errors: Optional[List[ErrorInfo]] = None,
+    metadata: Optional[ResponseMetadata] = None,
 ) -> ErrorResponse:
     """
     Create a standardized error response.
@@ -33,6 +35,7 @@ def create_error_response(
         message: Error message
         code: Error code identifier
         errors: Detailed error information list
+        metadata: Additional metadata for the response
 
     Returns:
         Standardized error response
@@ -41,6 +44,7 @@ def create_error_response(
         success=False,
         message=message,
         errors=errors or [ErrorInfo(code=code, message=message)],
+        metadata=metadata or ResponseMetadata(),
     )
 
 
@@ -110,6 +114,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         message=exc.message,
         code=exc.code,
         errors=errors,
+        metadata=ResponseMetadata(),
     )
 
     return JSONResponse(
@@ -138,6 +143,7 @@ async def validation_exception_handler(
         message="Request validation error",
         code="VALIDATION_ERROR",
         errors=errors,
+        metadata=ResponseMetadata(),
     )
 
     return JSONResponse(
@@ -166,6 +172,7 @@ async def pydantic_validation_handler(
         message="Data validation error",
         code="VALIDATION_ERROR",
         errors=errors,
+        metadata=ResponseMetadata(),
     )
 
     return JSONResponse(
@@ -197,6 +204,7 @@ async def http_exception_handler(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         message="Internal server error",
         code="INTERNAL_ERROR",
+        metadata=ResponseMetadata(),
     )
 
     return JSONResponse(
