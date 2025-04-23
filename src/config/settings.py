@@ -12,8 +12,6 @@ from .development import DevelopmentSettings
 from .production import ProductionSettings
 from .testing import TestingSettings
 
-ENV = os.getenv("APP_ENV", "development")
-
 
 def get_settings():
     """
@@ -25,9 +23,10 @@ def get_settings():
     Returns:
         BaseAppSettings: An instance of environment-specific settings
     """
-    if ENV == "production":
+    env = os.getenv("APP_ENV", "development")
+    if env == "production":
         return ProductionSettings()
-    elif ENV == "testing":
+    elif env == "testing":
         return TestingSettings()
     return DevelopmentSettings()
 

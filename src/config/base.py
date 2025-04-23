@@ -8,12 +8,12 @@ It handles basic application configuration like app name, debug mode, and versio
 import secrets
 from typing import List, Optional
 
-from pydantic import Field, validator
+from pydantic import ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings
 
-from src.logging import ensure_logger
+# from src.logging import ensure_logger
 
-logger = ensure_logger(None, __name__, None)
+# logger = ensure_logger(None, __name__, None)
 
 
 class BaseAppSettings(BaseSettings):
@@ -130,27 +130,27 @@ class BaseAppSettings(BaseSettings):
         description="List of paths to exclude from metrics collection",
     )
 
-    @validator("JWT_AUDIENCE", "JWT_ISSUER", pre=True)
-    def set_default_aud_iss(cls, value, values):
+    @field_validator("JWT_AUDIENCE", "JWT_ISSUER", mode="before")
+    def set_default_aud_iss(cls, value, info):
         """Set default audience and issuer based on app name if not provided."""
         if value is None:
             # Use the app name as default audience/issuer if not set
-            app_name = values.get("APP_NAME", "FastCore")
+            app_name = info.data.get("APP_NAME", "FastCore")
             return app_name.lower()
         return value
 
-    @validator("JWT_ALLOWED_AUDIENCES", pre=True)
-    def set_default_allowed_audiences(cls, value, values):
+    @field_validator("JWT_ALLOWED_AUDIENCES", mode="before")
+    def set_default_allowed_audiences(cls, value, info):
         """Set the default allowed audiences list if not provided."""
         if not value:
             # Include the default audience in the allowed list
-            audience = values.get("JWT_AUDIENCE")
+            audience = info.data.get("JWT_AUDIENCE")
             if audience:
                 return [audience]
         return value
 
-    @validator("JWT_SECRET_KEY", pre=True)
-    def generate_jwt_secret_if_empty(cls, value, values):
+    @field_validator("JWT_SECRET_KEY", mode="before")
+    def generate_jwt_secret_if_empty(cls, value, info):
         """
         Generate a secure random JWT secret key if not provided.
 
@@ -159,14 +159,14 @@ class BaseAppSettings(BaseSettings):
         """
         if not value:
             # Generate a secure random key if not provided
-            is_debug = values.get("DEBUG", False)
+            is_debug = info.data.get("DEBUG", False)
             if is_debug:
                 # In debug mode, generate a random key but warn
                 new_key = secrets.token_hex(32)
-                logger.warning(
-                    "WARNING: Using auto-generated JWT_SECRET_KEY. "
-                    "This is acceptable for development but not for production."
-                )
+                # logger.warning(
+                #     "WARNING: Using auto-generated JWT_SECRET_KEY. "
+                #     "This is acceptable for development but not for production."
+                # )
                 # print(
                 #     "WARNING: Using auto-generated JWT_SECRET_KEY. "
                 #     "This is acceptable for development but not for production."
@@ -180,6 +180,4 @@ class BaseAppSettings(BaseSettings):
                 )
         return value
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = ConfigDict(env_file=".env", case_sensitive=True)
