@@ -32,5 +32,4 @@ from src.config import BaseAppSettings, get_settings
 from src.errors import AppError, setup_errors
 from src.factory import configure_app
 from src.logging import get_logger
-from src.schemas import DataResponse, ErrorResponse, ResponseModel
-from src.security import authenticate_user, get_current_user
+from src.schemas import DataResponse, ErrorResponse
