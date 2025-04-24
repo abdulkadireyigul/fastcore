@@ -2,7 +2,7 @@
 Base metadata schemas for API responses.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
 
@@ -17,7 +17,8 @@ class BaseMetadata(BaseModel):
     """
 
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        # default_factory=datetime.utcnow,
+        default=datetime.now(timezone.utc),
         description="Timestamp of when the response was created",
     )
     version: str = Field(default="1.0", description="API version")
