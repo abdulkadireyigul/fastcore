@@ -34,13 +34,24 @@ def cache(
             full_key = f"{prefix or ''}{key_hash}"
 
             # Attempt to get cached value
-            cached = await cache_instance.get(full_key)
+            try:
+                cached = await cache_instance.get(full_key)
+            except Exception as e:
+                cache_instance._logger.error(f"Cache get error: {e}") if hasattr(
+                    cache_instance, "_logger"
+                ) else None
+                cached = None
             if cached is not None:
                 return cached
 
             # Call the wrapped function and cache its result
             result = await func(*args, **kwargs)
-            await cache_instance.set(full_key, result, ttl=ttl)
+            try:
+                await cache_instance.set(full_key, result, ttl=ttl)
+            except Exception as e:
+                cache_instance._logger.error(f"Cache set error: {e}") if hasattr(
+                    cache_instance, "_logger"
+                ) else None
             return result
 
         return wrapper
