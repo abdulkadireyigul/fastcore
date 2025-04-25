@@ -18,12 +18,12 @@ python = ">=3.8,<4.0"
 fastapi = "^0.100.0"
 pydantic = "^2.10.6"
 pydantic-settings = "^2.8.1"
-aioredis = "^2.0.0"
 typing-extensions = ">=4.5.0,<5.0.0"
 sqlalchemy = "^2.0.0"
 asyncpg = "^0.30.0"
 pyjwt = "^2.7.0"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+redis = "^5.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.9.1"

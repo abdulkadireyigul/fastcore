@@ -1,7 +1,7 @@
 import json
 from typing import Any, Optional
 
-import aioredis  # type: ignore
+from redis import asyncio as aredis  # type: ignore
 
 from src.cache.base import BaseCache
 from src.logging import Logger, ensure_logger
@@ -23,17 +23,24 @@ class RedisCache(BaseCache):
         self._default_ttl = default_ttl
         self._prefix = prefix
         self._logger = ensure_logger(logger, __name__)
-        self._redis: Optional[aioredis.Redis] = None
+        # self._redis: Optional[aioredis.Redis] = None
+        self._redis: Optional[aredis.Redis] = None
 
     async def init(self) -> None:
         """Initialize Redis connection and verify with ping."""
-        self._redis = aioredis.from_url(
+        self._redis = aredis.from_url(
             self._url, encoding="utf-8", decode_responses=True
         )
         await self._redis.ping()
 
+    async def _ensure_connection(self):
+        if self._redis is None:
+            raise RuntimeError(
+                "Redis connection is not initialized. Call 'init()' first."
+            )
+
     async def ping(self) -> bool:
-        """Ping the Redis server to check connectivity."""
+        await self._ensure_connection()
         try:
             pong = await self._redis.ping()
             return pong
@@ -42,6 +49,7 @@ class RedisCache(BaseCache):
             return False
 
     async def get(self, key: str) -> Optional[Any]:
+        await self._ensure_connection()
         full_key = f"{self._prefix}{key}"
         try:
             result = await self._redis.get(full_key)
@@ -59,6 +67,7 @@ class RedisCache(BaseCache):
             raise
 
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        await self._ensure_connection()
         full_key = f"{self._prefix}{key}"
         expire = ttl if ttl is not None else self._default_ttl
         try:
@@ -71,6 +80,7 @@ class RedisCache(BaseCache):
             raise
 
     async def delete(self, key: str) -> None:
+        await self._ensure_connection()
         full_key = f"{self._prefix}{key}"
         try:
             await self._redis.delete(full_key)
@@ -80,6 +90,7 @@ class RedisCache(BaseCache):
             raise
 
     async def clear(self, prefix: Optional[str] = None) -> None:
+        await self._ensure_connection()
         pat = f"{self._prefix}{prefix or ''}*"
         try:
             # Use SCAN to avoid blocking Redis for large keyspaces
@@ -91,11 +102,12 @@ class RedisCache(BaseCache):
             raise
 
     async def close(self) -> None:
-        """Close the Redis connection."""
         try:
-            self._redis.close()
-            await self._redis.wait_closed()
-            self._logger.debug("Redis connection closed")
+            if self._redis is not None:
+                # await self._redis.close()
+                await self._redis.connection_pool.disconnect()
+                self._redis = None
+                self._logger.debug("Redis connection closed")
         except Exception as e:
             self._logger.error(f"Cache close error: {e}")
             raise
