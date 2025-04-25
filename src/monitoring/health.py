@@ -202,7 +202,8 @@ def setup_health_endpoint(
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             return ErrorResponse(
                 message="Service unhealthy",
-                data=health_result,
+                data=None,
+                metadata={"health": health_result},
             )
         elif health_result["status"] == HealthStatus.DEGRADED:
             response.status_code = status.HTTP_200_OK
