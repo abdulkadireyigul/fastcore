@@ -32,6 +32,15 @@ class RedisCache(BaseCache):
         )
         await self._redis.ping()
 
+    async def ping(self) -> bool:
+        """Ping the Redis server to check connectivity."""
+        try:
+            pong = await self._redis.ping()
+            return pong
+        except Exception as e:
+            self._logger.error(f"Redis ping error: {e}")
+            return False
+
     async def get(self, key: str) -> Optional[Any]:
         full_key = f"{self._prefix}{key}"
         try:

@@ -8,9 +8,9 @@ allowing monitoring systems to verify application status.
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Union
 
-import aioredis
 from fastapi import APIRouter, Depends, FastAPI, Response, status
 
+from src.cache.manager import get_cache
 from src.config.base import BaseAppSettings
 from src.db import get_db
 from src.logging import Logger, ensure_logger
@@ -131,9 +131,8 @@ health_registry = HealthCheckRegistry()
 
 async def redis_health_check():
     try:
-        redis = await aioredis.from_url("redis://localhost")
-        pong = await redis.ping()
-        await redis.close()
+        cache = await get_cache()
+        pong = await cache.ping()
         return {
             "status": HealthStatus.HEALTHY if pong else HealthStatus.UNHEALTHY,
             "details": {"ping": pong},
