@@ -4,6 +4,7 @@ Database engine and session management for FastAPI applications.
 
 from typing import Optional
 
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -33,10 +34,18 @@ async def init_db(settings: BaseAppSettings, logger: Optional[Logger] = None) ->
     log = ensure_logger(logger, __name__, settings)
 
     log.debug(f"Creating database engine with URL: {settings.DATABASE_URL}")
+    url = make_url(settings.DATABASE_URL)
+    engine_kwargs = {
+        "echo": settings.DB_ECHO,
+    }
+    # Only pass pool_size if not using SQLite+aiosqlite
+    if not (
+        url.get_backend_name() == "sqlite" and url.drivername.endswith("aiosqlite")
+    ):
+        engine_kwargs["pool_size"] = settings.DB_POOL_SIZE
     engine = create_async_engine(
         settings.DATABASE_URL,
-        echo=settings.DB_ECHO,
-        pool_size=settings.DB_POOL_SIZE,
+        **engine_kwargs,
     )
     SessionLocal = async_sessionmaker(
         bind=engine,
