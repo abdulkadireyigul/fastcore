@@ -1,6 +1,6 @@
 import time
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from fastcore.cache.manager import get_cache
@@ -61,7 +61,14 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
         now = int(time.time())
         window = now // self.window_seconds
         key = f"ratelimit:{ip}:{window}"
-        cache = await get_cache()
+        try:
+            cache = await get_cache()
+        except RuntimeError:
+            # Redis yoksa rate limiting devre dışı, anlamlı hata dön
+            raise HTTPException(
+                status_code=503,
+                detail="Rate limiting backend unavailable (Redis not initialized)",
+            )
         count = await cache.incr(key)
         if count == 1:
             await cache.expire(key, self.window_seconds)
