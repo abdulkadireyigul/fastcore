@@ -199,9 +199,17 @@ def setup_health_endpoint(
 
         # Set response status code based on health status
         if health_result["status"] == HealthStatus.UNHEALTHY:
+            failed = [
+                c["name"]
+                for c in health_result["checks"]
+                if c["status"] == HealthStatus.UNHEALTHY
+            ]
+            msg = "Service unhealthy"
+            if failed:
+                msg += f": {', '.join(failed)}"
             response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
             return ErrorResponse(
-                message="Service unhealthy",
+                message=msg,
                 data=None,
                 metadata={"health": health_result},
             )
