@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends, FastAPI, Response, status
+from sqlalchemy import text
 
 from fastcore.cache.manager import get_cache
 from fastcore.config.base import BaseAppSettings
@@ -150,7 +151,7 @@ async def db_health_check():
     """
     try:
         async for db in get_db():
-            result = await db.execute("SELECT 1")
+            result = await db.execute(text("SELECT 1"))
             return {"status": HealthStatus.HEALTHY, "details": {"connected": True}}
     except Exception as e:
         return {
