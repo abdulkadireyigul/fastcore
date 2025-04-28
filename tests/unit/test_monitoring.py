@@ -94,6 +94,18 @@ async def test_redis_health_check_failure(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_redis_health_check_unhealthy_when_cache_none(monkeypatch):
+    # get_cache None döndürsün (cache initialize edilmemiş gibi)
+    monkeypatch.setattr(
+        "fastcore.monitoring.health.get_cache", AsyncMock(return_value=None)
+    )
+    result = await redis_health_check()
+    assert result["status"] == "unhealthy"
+    assert "error" in result["details"]
+    assert "not initialized" in result["details"]["error"].lower()
+
+
+@pytest.mark.asyncio
 async def test_db_health_check_success(monkeypatch):
     mock_db = AsyncMock()
     mock_db.execute.return_value = 1

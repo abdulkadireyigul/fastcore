@@ -133,6 +133,11 @@ health_registry = HealthCheckRegistry()
 async def redis_health_check():
     try:
         cache = await get_cache()
+        if cache is None:
+            return {
+                "status": HealthStatus.UNHEALTHY,
+                "details": {"error": "Cache not initialized"},
+            }
         pong = await cache.ping()
         return {
             "status": HealthStatus.HEALTHY if pong else HealthStatus.UNHEALTHY,
