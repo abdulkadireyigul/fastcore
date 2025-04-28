@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import FastAPI
 
-from src.cache import setup_cache
+from src.cache.manager import setup_cache
 from src.config import BaseAppSettings, get_settings
 from src.db import setup_db
 from src.errors import setup_errors
