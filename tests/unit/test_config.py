@@ -13,7 +13,7 @@ All tests use fixtures and monkeypatching to ensure isolation and avoid code dup
 
 import pytest
 
-from src.config.base import BaseAppSettings
+from fastcore.config.base import BaseAppSettings
 
 
 @pytest.fixture(autouse=True)
@@ -83,7 +83,7 @@ def test_jwt_audience_explicit_value():
 
 def test_get_settings_env(monkeypatch):
     monkeypatch.setenv("APP_ENV", "testing")
-    from src.config.settings import get_settings as gs
+    from fastcore.config.settings import get_settings as gs
 
     settings = gs()
     assert settings.__class__.__name__ == "TestingSettings"

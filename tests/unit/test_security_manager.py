@@ -7,7 +7,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 
-from src.security import manager
+from fastcore.security import manager
 
 
 def test_get_security_status_initialized(monkeypatch):

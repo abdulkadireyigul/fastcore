@@ -14,9 +14,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 
-from src.middleware.cors import add_cors_middleware
-from src.middleware.manager import setup_middlewares
-from src.middleware.rate_limiting import (
+from fastcore.middleware.cors import add_cors_middleware
+from fastcore.middleware.manager import setup_middlewares
+from fastcore.middleware.rate_limiting import (
     RedisRateLimitMiddleware,
     SimpleRateLimitMiddleware,
     add_rate_limiting_middleware,

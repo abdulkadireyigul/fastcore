@@ -13,7 +13,7 @@ import logging
 
 import pytest
 
-from src.logging import JsonFormatter, ensure_logger, get_logger, setup_logger
+from fastcore.logging import JsonFormatter, ensure_logger, get_logger, setup_logger
 
 
 @pytest.fixture

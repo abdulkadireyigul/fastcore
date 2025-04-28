@@ -4,7 +4,7 @@ Covers: password hashing and verification.
 """
 import pytest
 
-from src.security import password
+from fastcore.security import password
 
 
 def test_get_password_hash_and_verify():

@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 from fastapi import FastAPI
 
-from src.factory.app import configure_app
+from fastcore.factory.app import configure_app
 
 
 def test_configure_app_sets_attributes_and_calls_setups(monkeypatch):

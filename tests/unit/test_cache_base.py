@@ -11,7 +11,7 @@ from abc import ABC
 
 import pytest
 
-from src.cache.base import BaseCache
+from fastcore.cache.base import BaseCache
 
 
 class TestBaseCache:

@@ -14,8 +14,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.db.repository import BaseRepository
-from src.errors.exceptions import DBError, NotFoundError
+from fastcore.db.repository import BaseRepository
+from fastcore.errors.exceptions import DBError, NotFoundError
 
 
 @pytest.fixture
@@ -198,7 +198,7 @@ def test_shutdown_db_logs_when_engine(monkeypatch):
     mock_engine.dispose.return_value = None
     import asyncio
 
-    from src.db.engine import shutdown_db
+    from fastcore.db.engine import shutdown_db
 
     asyncio.run(shutdown_db())
     mock_engine.dispose.assert_awaited_once()
@@ -213,7 +213,7 @@ def test_shutdown_db_logs_after_dispose(monkeypatch):
     with patch("src.db.engine.ensure_logger") as mock_logger:
         import asyncio
 
-        from src.db.engine import shutdown_db
+        from fastcore.db.engine import shutdown_db
 
         asyncio.run(shutdown_db())
         assert any(
@@ -228,7 +228,7 @@ def test_setup_db_event_handlers_are_called(monkeypatch):
 
     from fastapi import FastAPI
 
-    from src.db.manager import setup_db
+    from fastcore.db.manager import setup_db
 
     app = FastAPI()
     settings = MagicMock()
@@ -249,8 +249,8 @@ def test_setup_db_event_handlers_are_called(monkeypatch):
 
 def test_init_db_logs_and_handles_exceptions(monkeypatch):
     """Test init_db logs and handles exceptions."""
-    from src.config.base import BaseAppSettings
-    from src.db.engine import init_db
+    from fastcore.config.base import BaseAppSettings
+    from fastcore.db.engine import init_db
 
     settings = MagicMock(spec=BaseAppSettings)
     settings.DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -270,7 +270,7 @@ def test_shutdown_db_handles_exceptions(monkeypatch):
     mock_engine = AsyncMock()
     mock_engine.dispose.side_effect = Exception("fail")
     monkeypatch.setattr(db_engine_mod, "engine", mock_engine)
-    from src.db.engine import shutdown_db
+    from fastcore.db.engine import shutdown_db
 
     with pytest.raises(Exception):
         import asyncio
@@ -281,14 +281,14 @@ def test_shutdown_db_handles_exceptions(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_db_commit_and_rollback(monkeypatch):
     """Test get_db commits on success and rolls back on error."""
-    import src.db.manager as db_manager_mod
+    import fastcore.db.manager as db_manager_mod
 
     mock_session = AsyncMock()
     mock_cm = AsyncMock()
     mock_cm.__aenter__.return_value = mock_session
     mock_cm.__aexit__.return_value = None
     monkeypatch.setattr(db_manager_mod, "SessionLocal", lambda: mock_cm)
-    from src.db.manager import get_db
+    from fastcore.db.manager import get_db
 
     gen = get_db()
     session = await gen.__anext__()
@@ -307,14 +307,14 @@ async def test_get_db_commit_and_rollback(monkeypatch):
 @pytest.mark.asyncio
 async def test_get_db_commit_exception(monkeypatch):
     """Test get_db rolls back and raises DBError if commit fails."""
-    import src.db.manager as db_manager_mod
+    import fastcore.db.manager as db_manager_mod
 
     mock_session = AsyncMock()
     mock_cm = AsyncMock()
     mock_cm.__aenter__.return_value = mock_session
     mock_cm.__aexit__.return_value = None
     monkeypatch.setattr(db_manager_mod, "SessionLocal", lambda: mock_cm)
-    from src.db.manager import get_db
+    from fastcore.db.manager import get_db
 
     mock_session.commit.side_effect = Exception("commit fail")
     mock_session.rollback.return_value = None

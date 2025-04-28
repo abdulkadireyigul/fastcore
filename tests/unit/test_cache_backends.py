@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from src.cache.backends import RedisCache
+from fastcore.cache.backends import RedisCache
 
 
 @pytest.fixture

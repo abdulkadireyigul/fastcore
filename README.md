@@ -25,7 +25,7 @@ poetry add fastcore redis sqlalchemy asyncpg pydantic passlib[bcrypt] pyjwt prom
 
 > If loading from source:
 > ```bash
-> git clone https://github.com/your-org/fastcore.git
+> git clone https://github.com/abdulkadireyigul/fastcore.git
 > cd fastcore
 > poetry install --all-extras
 > ```
@@ -69,23 +69,23 @@ async def fetch_user(user_id: str) -> dict:
 Run all tests and check coverage:
 
 ```bash
-poetry run pytest --cov=src --cov-report=term-missing
+poetry run pytest --cov=fastcore --cov-report=term-missing
 ```
 
 ## Module Documentation
 
 Each submodule includes a detailed README in its folder:
 
-- `src/config/README.md`
-- `src/logging/README.md`
-- `src/schemas/README.md`
-- `src/errors/README.md`
-- `src/cache/README.md`
-- `src/db/README.md`
-- `src/security/README.md`
-- `src/middleware/README.md`
-- `src/monitoring/README.md`
-- `src/factory/README.md`
+- `fastcore/config/README.md`
+- `fastcore/logging/README.md`
+- `fastcore/schemas/README.md`
+- `fastcore/errors/README.md`
+- `fastcore/cache/README.md`
+- `fastcore/db/README.md`
+- `fastcore/security/README.md`
+- `fastcore/middleware/README.md`
+- `fastcore/monitoring/README.md`
+- `fastcore/factory/README.md`
 
 ## Versioning
 

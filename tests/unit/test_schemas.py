@@ -11,12 +11,12 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from src.schemas.metadata import BaseMetadata, ResponseMetadata
-from src.schemas.response.base import BaseResponse
-from src.schemas.response.data import DataResponse
-from src.schemas.response.error import ErrorInfo, ErrorResponse
-from src.schemas.response.list import ListMetadata, ListResponse
-from src.schemas.response.token import TokenResponse
+from fastcore.schemas.metadata import BaseMetadata, ResponseMetadata
+from fastcore.schemas.response.base import BaseResponse
+from fastcore.schemas.response.data import DataResponse
+from fastcore.schemas.response.error import ErrorInfo, ErrorResponse
+from fastcore.schemas.response.list import ListMetadata, ListResponse
+from fastcore.schemas.response.token import TokenResponse
 
 
 # --- BaseMetadata and ResponseMetadata ---

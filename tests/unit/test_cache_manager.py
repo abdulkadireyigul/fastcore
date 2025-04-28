@@ -13,13 +13,13 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI
 
-from src.cache.manager import get_cache, setup_cache
+from fastcore.cache.manager import get_cache, setup_cache
 
 
 @pytest.fixture
 def reset_module_cache():
     """Reset module-level cache for each test."""
-    import src.cache.manager as manager_module
+    import fastcore.cache.manager as manager_module
 
     original_cache = manager_module.cache
     manager_module.cache = None
@@ -101,7 +101,7 @@ async def test_init_cache_on_startup(mock_app, mock_settings, reset_module_cache
         mock_instance.init.assert_awaited_once()
 
         # Verify cache is now accessible
-        import src.cache.manager as manager_module
+        import fastcore.cache.manager as manager_module
 
         assert manager_module.cache is not None
         result = await get_cache()
@@ -130,7 +130,7 @@ async def test_shutdown_cache_on_shutdown(mock_app, mock_settings, reset_module_
         mock_instance.close.assert_awaited_once()
 
         # Verify cache is now None
-        import src.cache.manager as manager_module
+        import fastcore.cache.manager as manager_module
 
         assert manager_module.cache is not None  # We don't reset it to None
 

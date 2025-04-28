@@ -17,8 +17,8 @@ import pytest
 from fastapi import APIRouter, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from src.factory.app import configure_app
-from src.logging.manager import ensure_logger
+from fastcore.factory.app import configure_app
+from fastcore.logging.manager import ensure_logger
 
 
 @pytest.fixture(scope="module")
@@ -82,7 +82,7 @@ def test_error_handler_422(client):
 
 
 def test_monitoring_health_degraded(client, monkeypatch):
-    from src.monitoring import health
+    from fastcore.monitoring import health
 
     class FakeRegistry:
         async def run_all(self):
@@ -150,7 +150,7 @@ def test_error_handler_500(client):
 
 # --- Security: password hashing and user logic ---
 def test_password_hash_and_verify():
-    from src.security.password import get_password_hash, verify_password
+    from fastcore.security.password import get_password_hash, verify_password
 
     password = "testpass123"
     hashed = get_password_hash(password)
@@ -174,7 +174,7 @@ def test_custom_exception_handler(client):
 
 
 def test_metrics_endpoint_error(client, monkeypatch):
-    from src.monitoring import metrics
+    from fastcore.monitoring import metrics
 
     monkeypatch.setattr(
         metrics,
@@ -195,7 +195,7 @@ def test_rate_limiting_memory_edge(client, monkeypatch):
             prometheus_client.REGISTRY.unregister(collector)
         except Exception:
             pass
-    from src.middleware.rate_limiting import SimpleRateLimitMiddleware
+    from fastcore.middleware.rate_limiting import SimpleRateLimitMiddleware
 
     logger = ensure_logger(None, __name__)
     app = FastAPI()

@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.cache.decorators import cache
+from fastcore.cache.decorators import cache
 
 
 @pytest.fixture

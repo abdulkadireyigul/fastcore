@@ -8,14 +8,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import jwt
 import pytest
 
-from src.errors.exceptions import DBError
-from src.security.exceptions import (
+from fastcore.errors.exceptions import DBError
+from fastcore.security.exceptions import (
     ExpiredTokenError,
     InvalidTokenError,
     RevokedTokenError,
 )
-from src.security.models import Token, TokenType
-from src.security.tokens import (
+from fastcore.security.models import Token, TokenType
+from fastcore.security.tokens import (
     TokenRepository,
     create_access_token,
     create_refresh_token,

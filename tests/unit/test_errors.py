@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel
 from pydantic import ValidationError as PydanticValidationError
 
-from src.errors.exceptions import (
+from fastcore.errors.exceptions import (
     AppError,
     BadRequestError,
     ConflictError,
@@ -23,8 +23,11 @@ from src.errors.exceptions import (
     UnauthorizedError,
     ValidationError,
 )
-from src.errors.handlers import _create_validation_errors, register_exception_handlers
-from src.errors.manager import setup_errors
+from fastcore.errors.handlers import (
+    _create_validation_errors,
+    register_exception_handlers,
+)
+from fastcore.errors.manager import setup_errors
 
 
 @pytest.mark.parametrize(

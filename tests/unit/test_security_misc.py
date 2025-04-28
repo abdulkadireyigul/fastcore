@@ -9,14 +9,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from src.security import dependencies
-from src.security.exceptions import (
+from fastcore.security import dependencies
+from fastcore.security.exceptions import (
     ExpiredTokenError,
     InvalidCredentialsError,
     InvalidTokenError,
     RevokedTokenError,
 )
-from src.security.models import Token, TokenType
+from fastcore.security.models import Token, TokenType
 from tests.conftest import assert_http_exc
 
 # Use shared dummy_session and dummy_settings fixtures from conftest.py where needed

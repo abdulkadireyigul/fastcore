@@ -4,7 +4,7 @@ Covers: user authentication protocol, base class, and error handling.
 """
 import pytest
 
-from src.security.users import (
+from fastcore.security.users import (
     AuthenticationError,
     BaseUserAuthentication,
     UserAuthentication,

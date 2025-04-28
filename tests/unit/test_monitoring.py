@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi import FastAPI, Response, status
 
-from src.monitoring.health import (
+from fastcore.monitoring.health import (
     HealthCheck,
     HealthCheckRegistry,
     HealthStatus,
@@ -12,8 +12,8 @@ from src.monitoring.health import (
     redis_health_check,
     setup_health_endpoint,
 )
-from src.schemas.response.data import DataResponse
-from src.schemas.response.error import ErrorResponse
+from fastcore.schemas.response.data import DataResponse
+from fastcore.schemas.response.error import ErrorResponse
 
 
 @pytest.mark.asyncio
@@ -201,7 +201,7 @@ def test_setup_monitoring(monkeypatch):
         "src.monitoring.manager.setup_metrics_endpoint",
         lambda *a, **kw: called.setdefault("metrics", True),
     )
-    from src.monitoring.manager import setup_monitoring
+    from fastcore.monitoring.manager import setup_monitoring
 
     setup_monitoring(app, settings, logger)
     assert called["health"]
@@ -211,7 +211,7 @@ def test_setup_monitoring(monkeypatch):
 
 # --- metrics.py tests ---
 # import types
-from src.monitoring.metrics import PrometheusMiddleware, setup_metrics_endpoint
+from fastcore.monitoring.metrics import PrometheusMiddleware, setup_metrics_endpoint
 
 # from prometheus_client import REGISTRY
 
