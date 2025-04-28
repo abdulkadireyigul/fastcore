@@ -200,7 +200,9 @@ def setup_health_endpoint(
         # Set response status code based on health status
         if health_result["status"] == HealthStatus.UNHEALTHY:
             failed = [
-                c["name"]
+                f"{c['name']} ({c['details'].get('error')})"
+                if c["details"].get("error")
+                else c["name"]
                 for c in health_result["checks"]
                 if c["status"] == HealthStatus.UNHEALTHY
             ]
