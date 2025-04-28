@@ -88,11 +88,16 @@ def test_add_rate_limiting_middleware_memory():
 
 
 def test_add_rate_limiting_middleware_redis():
+    import sys
+
     app = MagicMock(spec=FastAPI)
     settings = MagicMock()
     logger = MagicMock()
     settings.RATE_LIMITING_BACKEND = "redis"
     settings.RATE_LIMITING_OPTIONS = {"max_requests": 2, "window_seconds": 60}
+    # sys.modules üzerinden cache'i mockla
+    manager_mod = sys.modules["fastcore.cache.manager"]
+    manager_mod.cache = MagicMock()
     add_rate_limiting_middleware(app, settings, logger)
     app.add_middleware.assert_called_with(
         RedisRateLimitMiddleware, logger=logger, max_requests=2, window_seconds=60

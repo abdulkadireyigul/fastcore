@@ -1,3 +1,4 @@
+import sys
 import time
 
 from fastapi import FastAPI, Request, Response
@@ -89,7 +90,10 @@ def add_rate_limiting_middleware(
         f"Configuring rate limiting middleware with backend={backend}, options={opts}"
     )
 
-    if backend == "redis":
+    manager_mod = sys.modules.get("fastcore.cache.manager")
+    cache = getattr(manager_mod, "cache", None)
+
+    if backend == "redis" and cache is not None:
         app.add_middleware(RedisRateLimitMiddleware, logger=logger, **opts)
         # if logger:
         logger.debug("RedisRateLimitMiddleware added to FastAPI application.")

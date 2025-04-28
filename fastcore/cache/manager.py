@@ -1,3 +1,4 @@
+import sys
 from typing import Optional
 
 from fastapi import FastAPI
@@ -11,13 +12,16 @@ from fastcore.logging import Logger, ensure_logger
 cache: Optional[BaseCache] = None
 
 
-async def get_cache() -> BaseCache:
+async def get_cache() -> Optional[BaseCache]:
     """
     FastAPI dependency for retrieving the cache instance.
     """
-    if cache is None:
+    manager_mod = sys.modules.get("fastcore.cache.manager")
+    cache_instance = getattr(manager_mod, "cache", None)
+    if cache_instance is None:
         raise RuntimeError("Cache not initialized")
-    return cache
+
+    return cache_instance
 
 
 def setup_cache(
