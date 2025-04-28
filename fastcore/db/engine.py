@@ -52,6 +52,11 @@ async def init_db(settings: BaseAppSettings, logger: Optional[Logger] = None) ->
         expire_on_commit=False,
     )
     log.debug("Database engine and session factory initialized")
+    import logging
+
+    logging.warning(
+        f"init_db: SessionLocal={SessionLocal!r}, id={id(SessionLocal)}, module={getattr(SessionLocal, '__module__', None)}"
+    )
 
 
 async def shutdown_db(logger: Optional[Logger] = None) -> None:

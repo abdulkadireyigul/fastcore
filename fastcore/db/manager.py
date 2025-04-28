@@ -38,11 +38,17 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session per request.
     """
+    import logging
+
+    logging.warning(
+        f"get_db: SessionLocal={SessionLocal!r}, id={id(SessionLocal)}, module={getattr(SessionLocal, '__module__', None)}"
+    )
+
     if SessionLocal is None:
         raise DBError(message="Database not initialized")
 
     log = ensure_logger(None, __name__)
-    
+
     log.info(f"SessionLocal at get_db: {SessionLocal}")
 
     async with SessionLocal() as session:
