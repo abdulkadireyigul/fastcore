@@ -32,7 +32,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_decorator_hit(self, mock_cache):
         """Test cache decorator with a cache hit."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache hit
             mock_cache.get.return_value = "cached_result"
 
@@ -54,7 +54,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_decorator_miss(self, mock_cache):
         """Test cache decorator with a cache miss."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache miss
             mock_cache.get.return_value = None
 
@@ -78,7 +78,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_key_generation(self, mock_cache):
         """Test that cache keys are generated correctly based on function and arguments."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache miss
             mock_cache.get.return_value = None
 
@@ -119,7 +119,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_ttl(self, mock_cache):
         """Test cache decorator with custom TTL."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache miss
             mock_cache.get.return_value = None
 
@@ -138,7 +138,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_prefix(self, mock_cache):
         """Test cache decorator with custom prefix."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache miss
             mock_cache.get.return_value = None
 
@@ -157,7 +157,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_with_complex_arguments(self, mock_cache):
         """Test cache decorator with complex arguments (lists, dicts, etc.)."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache miss
             mock_cache.get.return_value = None
 
@@ -181,7 +181,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_get_error(self, mock_cache):
         """Test error handling when cache.get raises an exception."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache.get to raise an exception
             mock_cache.get.side_effect = Exception("Cache get error")
 
@@ -203,7 +203,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_set_error(self, mock_cache):
         """Test error handling when cache.set raises an exception."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache.get to miss and cache.set to raise an exception
             mock_cache.get.return_value = None
             mock_cache.set.side_effect = Exception("Cache set error")
@@ -224,7 +224,7 @@ class TestCacheDecorator:
     @pytest.mark.asyncio
     async def test_cache_non_json_serializable(self, mock_cache):
         """Test caching with results that aren't JSON serializable."""
-        with patch("src.cache.decorators.get_cache", return_value=mock_cache):
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
             # Setup cache miss
             mock_cache.get.return_value = None
 

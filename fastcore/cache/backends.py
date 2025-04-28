@@ -101,6 +101,18 @@ class RedisCache(BaseCache):
             self._logger.error(f"Cache clear error for pattern {pat}: {e}")
             raise
 
+    async def incr(self, key: str, amount: int = 1, ttl: Optional[int] = None) -> int:
+        await self._ensure_connection()
+        full_key = f"{self._prefix}{key}"
+        try:
+            value = await self._redis.incrby(full_key, amount)
+            if ttl is not None:
+                await self._redis.expire(full_key, ttl)
+            return value
+        except Exception as e:
+            self._logger.error(f"Cache incr error for key {full_key}: {e}")
+            raise
+
     async def close(self) -> None:
         try:
             if self._redis is not None:

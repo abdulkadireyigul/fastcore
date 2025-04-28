@@ -28,28 +28,31 @@ def test_configure_app_sets_attributes_and_calls_setups(monkeypatch):
     settings.DEBUG = True
     called = {}
     monkeypatch.setattr(
-        "src.factory.app.setup_errors",
+        "fastcore.factory.app.setup_errors",
         lambda *a, **kw: called.setdefault("errors", True),
     )
     monkeypatch.setattr(
-        "src.factory.app.setup_cache", lambda *a, **kw: called.setdefault("cache", True)
+        "fastcore.factory.app.setup_cache",
+        lambda *a, **kw: called.setdefault("cache", True),
     )
     monkeypatch.setattr(
-        "src.factory.app.setup_db", lambda *a, **kw: called.setdefault("db", True)
+        "fastcore.factory.app.setup_db", lambda *a, **kw: called.setdefault("db", True)
     )
     monkeypatch.setattr(
-        "src.factory.app.setup_security",
+        "fastcore.factory.app.setup_security",
         lambda *a, **kw: called.setdefault("security", True),
     )
     monkeypatch.setattr(
-        "src.factory.app.setup_middlewares",
+        "fastcore.factory.app.setup_middlewares",
         lambda *a, **kw: called.setdefault("middlewares", True),
     )
     monkeypatch.setattr(
-        "src.factory.app.setup_monitoring",
+        "fastcore.factory.app.setup_monitoring",
         lambda *a, **kw: called.setdefault("monitoring", True),
     )
-    monkeypatch.setattr("src.factory.app.ensure_logger", lambda *a, **kw: MagicMock())
+    monkeypatch.setattr(
+        "fastcore.factory.app.ensure_logger", lambda *a, **kw: MagicMock()
+    )
     configure_app(app, settings)
     assert app.title == "TestApp"
     assert app.version == "1.2.3"
@@ -67,14 +70,16 @@ def test_configure_app_uses_default_settings(monkeypatch):
     settings.APP_NAME = "TestApp"
     settings.VERSION = "1.2.3"
     settings.DEBUG = True
-    monkeypatch.setattr("src.factory.app.get_settings", lambda: settings)
-    monkeypatch.setattr("src.factory.app.setup_errors", lambda *a, **kw: None)
-    monkeypatch.setattr("src.factory.app.setup_cache", lambda *a, **kw: None)
-    monkeypatch.setattr("src.factory.app.setup_db", lambda *a, **kw: None)
-    monkeypatch.setattr("src.factory.app.setup_security", lambda *a, **kw: None)
-    monkeypatch.setattr("src.factory.app.setup_middlewares", lambda *a, **kw: None)
-    monkeypatch.setattr("src.factory.app.setup_monitoring", lambda *a, **kw: None)
-    monkeypatch.setattr("src.factory.app.ensure_logger", lambda *a, **kw: MagicMock())
+    monkeypatch.setattr("fastcore.factory.app.get_settings", lambda: settings)
+    monkeypatch.setattr("fastcore.factory.app.setup_errors", lambda *a, **kw: None)
+    monkeypatch.setattr("fastcore.factory.app.setup_cache", lambda *a, **kw: None)
+    monkeypatch.setattr("fastcore.factory.app.setup_db", lambda *a, **kw: None)
+    monkeypatch.setattr("fastcore.factory.app.setup_security", lambda *a, **kw: None)
+    monkeypatch.setattr("fastcore.factory.app.setup_middlewares", lambda *a, **kw: None)
+    monkeypatch.setattr("fastcore.factory.app.setup_monitoring", lambda *a, **kw: None)
+    monkeypatch.setattr(
+        "fastcore.factory.app.ensure_logger", lambda *a, **kw: MagicMock()
+    )
     configure_app(app)
     assert app.title == "TestApp"
     assert app.version == "1.2.3"

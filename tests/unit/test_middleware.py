@@ -60,11 +60,11 @@ def test_setup_middlewares(monkeypatch):
     logger = MagicMock()
     called = {}
     monkeypatch.setattr(
-        "src.middleware.manager.add_cors_middleware",
+        "fastcore.middleware.manager.add_cors_middleware",
         lambda *a, **kw: called.setdefault("cors", True),
     )
     monkeypatch.setattr(
-        "src.middleware.manager.add_rate_limiting_middleware",
+        "fastcore.middleware.manager.add_rate_limiting_middleware",
         lambda *a, **kw: called.setdefault("rate", True),
     )
     setup_middlewares(app, settings, logger)
@@ -147,7 +147,8 @@ async def test_redis_rate_limit_middleware_allows(monkeypatch):
     mock_cache.incr.side_effect = [1, 2]
     mock_cache.expire = AsyncMock()
     monkeypatch.setattr(
-        "src.middleware.rate_limiting.get_cache", AsyncMock(return_value=mock_cache)
+        "fastcore.middleware.rate_limiting.get_cache",
+        AsyncMock(return_value=mock_cache),
     )
     result = await middleware.dispatch(request, call_next)
     assert result == "ok"
@@ -170,7 +171,8 @@ async def test_redis_rate_limit_middleware_blocks(monkeypatch):
     mock_cache.incr.side_effect = [1, 2]
     mock_cache.expire = AsyncMock()
     monkeypatch.setattr(
-        "src.middleware.rate_limiting.get_cache", AsyncMock(return_value=mock_cache)
+        "fastcore.middleware.rate_limiting.get_cache",
+        AsyncMock(return_value=mock_cache),
     )
     await middleware.dispatch(request, call_next)
     resp = await middleware.dispatch(request, call_next)

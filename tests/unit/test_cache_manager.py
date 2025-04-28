@@ -79,7 +79,7 @@ def test_setup_cache_registers_event_handlers(mock_app, mock_settings):
 @pytest.mark.asyncio
 async def test_init_cache_on_startup(mock_app, mock_settings, reset_module_cache):
     """Test that the init_cache event handler initializes the cache correctly."""
-    with patch("src.cache.manager.RedisCache") as mock_redis_cache:
+    with patch("fastcore.cache.manager.RedisCache") as mock_redis_cache:
         # Setup mock Redis cache
         mock_instance = AsyncMock()
         mock_redis_cache.return_value = mock_instance
@@ -111,7 +111,7 @@ async def test_init_cache_on_startup(mock_app, mock_settings, reset_module_cache
 @pytest.mark.asyncio
 async def test_shutdown_cache_on_shutdown(mock_app, mock_settings, reset_module_cache):
     """Test that the shutdown_cache event handler closes the cache correctly."""
-    with patch("src.cache.manager.RedisCache") as mock_redis_cache:
+    with patch("fastcore.cache.manager.RedisCache") as mock_redis_cache:
         # Setup mock Redis cache
         mock_instance = AsyncMock()
         mock_redis_cache.return_value = mock_instance
@@ -143,7 +143,7 @@ async def test_setup_cache_empty_prefix(mock_app):
     settings.CACHE_DEFAULT_TTL = 300
     settings.CACHE_KEY_PREFIX = None
 
-    with patch("src.cache.manager.RedisCache") as mock_redis_cache:
+    with patch("fastcore.cache.manager.RedisCache") as mock_redis_cache:
         # Setup mock Redis cache
         mock_instance = AsyncMock()
         mock_redis_cache.return_value = mock_instance

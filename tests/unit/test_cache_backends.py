@@ -212,3 +212,34 @@ async def test_close_raises_on_error(cache):
     cache._redis = mock_redis
     with pytest.raises(Exception, match="disconnect error"):
         await cache.close()
+
+
+@pytest.mark.asyncio
+async def test_incr_increments_and_sets_ttl():
+    cache = RedisCache(url="redis://localhost:6379/0", default_ttl=100, prefix="test:")
+    cache._redis = AsyncMock()
+    cache._redis.incrby = AsyncMock(return_value=5)
+    cache._redis.expire = AsyncMock()
+    await cache.incr("counter", amount=2, ttl=10)
+    cache._redis.incrby.assert_awaited_once_with("test:counter", 2)
+    cache._redis.expire.assert_awaited_once_with("test:counter", 10)
+
+
+@pytest.mark.asyncio
+async def test_incr_increments_without_ttl():
+    cache = RedisCache(url="redis://localhost:6379/0", default_ttl=100, prefix="test:")
+    cache._redis = AsyncMock()
+    cache._redis.incrby = AsyncMock(return_value=3)
+    cache._redis.expire = AsyncMock()
+    await cache.incr("counter", amount=1)
+    cache._redis.incrby.assert_awaited_once_with("test:counter", 1)
+    cache._redis.expire.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_incr_raises_on_error():
+    cache = RedisCache(url="redis://localhost:6379/0", default_ttl=100, prefix="test:")
+    cache._redis = AsyncMock()
+    cache._redis.incrby = AsyncMock(side_effect=Exception("fail"))
+    with pytest.raises(Exception, match="fail"):
+        await cache.incr("counter")

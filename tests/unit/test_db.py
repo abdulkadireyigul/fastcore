@@ -77,7 +77,7 @@ async def test_repository_list_success(dummy_session, dummy_model):
     result_mock.scalars.return_value = scalars_mock
     session.execute.return_value = result_mock
     repo = BaseRepository(dummy_model, session)
-    with patch("src.db.repository.select", return_value=MagicMock()):
+    with patch("fastcore.db.repository.select", return_value=MagicMock()):
         items = await repo.list()
     assert len(items) == 2
     session.execute.assert_awaited()
@@ -93,7 +93,7 @@ async def test_repository_list_with_filters(dummy_session, dummy_model):
     result_mock.scalars.return_value = scalars_mock
     session.execute.return_value = result_mock
     repo = BaseRepository(dummy_model, session)
-    with patch("src.db.repository.select", return_value=MagicMock()):
+    with patch("fastcore.db.repository.select", return_value=MagicMock()):
         items = await repo.list(filters={"id": 1})
     assert items == []
     session.execute.assert_awaited()
@@ -183,7 +183,7 @@ async def test_repository_delete_db_error(dummy_session, dummy_model):
 
 def test_shutdown_db_no_engine(monkeypatch):
     """Test shutdown_db does nothing if engine is None."""
-    db_engine_mod = sys.modules["src.db.engine"]
+    db_engine_mod = sys.modules["fastcore.db.engine"]
     monkeypatch.setattr(db_engine_mod, "engine", None)
     import asyncio
 
@@ -192,7 +192,7 @@ def test_shutdown_db_no_engine(monkeypatch):
 
 def test_shutdown_db_logs_when_engine(monkeypatch):
     """Test shutdown_db disposes engine and logs."""
-    db_engine_mod = sys.modules["src.db.engine"]
+    db_engine_mod = sys.modules["fastcore.db.engine"]
     mock_engine = AsyncMock()
     monkeypatch.setattr(db_engine_mod, "engine", mock_engine)
     mock_engine.dispose.return_value = None
@@ -206,11 +206,11 @@ def test_shutdown_db_logs_when_engine(monkeypatch):
 
 def test_shutdown_db_logs_after_dispose(monkeypatch):
     """Test shutdown_db logs after engine is disposed."""
-    db_engine_mod = sys.modules["src.db.engine"]
+    db_engine_mod = sys.modules["fastcore.db.engine"]
     mock_engine = AsyncMock()
     monkeypatch.setattr(db_engine_mod, "engine", mock_engine)
     mock_engine.dispose.return_value = None
-    with patch("src.db.engine.ensure_logger") as mock_logger:
+    with patch("fastcore.db.engine.ensure_logger") as mock_logger:
         import asyncio
 
         from fastcore.db.engine import shutdown_db
@@ -234,8 +234,8 @@ def test_setup_db_event_handlers_are_called(monkeypatch):
     settings = MagicMock()
     logger = MagicMock()
     setup_db(app, settings, logger)
-    with patch("src.db.manager.init_db", new=AsyncMock()) as mock_init_db, patch(
-        "src.db.manager.shutdown_db", new=AsyncMock()
+    with patch("fastcore.db.manager.init_db", new=AsyncMock()) as mock_init_db, patch(
+        "fastcore.db.manager.shutdown_db", new=AsyncMock()
     ) as mock_shutdown_db:
         import asyncio
 
@@ -257,7 +257,7 @@ def test_init_db_logs_and_handles_exceptions(monkeypatch):
     settings.DB_ECHO = False
     settings.DB_POOL_SIZE = 5
     logger = MagicMock()
-    with patch("src.db.engine.create_async_engine", side_effect=Exception("fail")):
+    with patch("fastcore.db.engine.create_async_engine", side_effect=Exception("fail")):
         with pytest.raises(Exception):
             import asyncio
 
@@ -266,7 +266,7 @@ def test_init_db_logs_and_handles_exceptions(monkeypatch):
 
 def test_shutdown_db_handles_exceptions(monkeypatch):
     """Test shutdown_db handles exceptions from engine.dispose."""
-    db_engine_mod = sys.modules["src.db.engine"]
+    db_engine_mod = sys.modules["fastcore.db.engine"]
     mock_engine = AsyncMock()
     mock_engine.dispose.side_effect = Exception("fail")
     monkeypatch.setattr(db_engine_mod, "engine", mock_engine)

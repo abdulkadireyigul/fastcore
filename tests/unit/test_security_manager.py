@@ -28,7 +28,7 @@ def test_setup_security_adds_handlers():
     settings.JWT_ALGORITHM = "HS256"
     settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
     with patch(
-        "src.security.manager.ensure_logger", return_value=MagicMock()
+        "fastcore.security.manager.ensure_logger", return_value=MagicMock()
     ) as mock_logger:
         manager.setup_security(app, settings)
         app.add_event_handler.assert_any_call("startup", ANY)

@@ -73,7 +73,7 @@ async def test_redis_health_check_success(monkeypatch):
     async def fake_get_cache():
         return mock_cache
 
-    monkeypatch.setattr("src.monitoring.health.get_cache", fake_get_cache)
+    monkeypatch.setattr("fastcore.monitoring.health.get_cache", fake_get_cache)
     result = await redis_health_check()
     assert result["status"] == HealthStatus.HEALTHY
     assert result["details"]["ping"] is True
@@ -87,7 +87,7 @@ async def test_redis_health_check_failure(monkeypatch):
     async def fake_get_cache():
         return mock_cache
 
-    monkeypatch.setattr("src.monitoring.health.get_cache", fake_get_cache)
+    monkeypatch.setattr("fastcore.monitoring.health.get_cache", fake_get_cache)
     result = await redis_health_check()
     assert result["status"] == HealthStatus.UNHEALTHY
     assert "fail" in result["details"]["error"]
@@ -131,7 +131,9 @@ async def test_health_check_route_branches(monkeypatch):
     settings.HEALTH_INCLUDE_DETAILS = True
     logger = MagicMock()
     # Patch health_registry to control run_all output
-    monkeypatch.setattr("src.monitoring.health.health_registry", HealthCheckRegistry())
+    monkeypatch.setattr(
+        "fastcore.monitoring.health.health_registry", HealthCheckRegistry()
+    )
     # Set HEALTH_INCLUDE_DETAILS = False before endpoint setup
     settings.HEALTH_INCLUDE_DETAILS = False
     setup_health_endpoint(app, settings, logger)
@@ -141,28 +143,28 @@ async def test_health_check_route_branches(monkeypatch):
     response = MagicMock()
     # Healthy
     monkeypatch.setattr(
-        "src.monitoring.health.health_registry.run_all",
+        "fastcore.monitoring.health.health_registry.run_all",
         AsyncMock(return_value={"status": HealthStatus.HEALTHY, "checks": []}),
     )
     result = await route_handler(response)
     assert isinstance(result, DataResponse)
     # Unhealthy
     monkeypatch.setattr(
-        "src.monitoring.health.health_registry.run_all",
+        "fastcore.monitoring.health.health_registry.run_all",
         AsyncMock(return_value={"status": HealthStatus.UNHEALTHY, "checks": []}),
     )
     result = await route_handler(response)
     assert isinstance(result, ErrorResponse)
     # Degraded
     monkeypatch.setattr(
-        "src.monitoring.health.health_registry.run_all",
+        "fastcore.monitoring.health.health_registry.run_all",
         AsyncMock(return_value={"status": HealthStatus.DEGRADED, "checks": []}),
     )
     result = await route_handler(response)
     assert isinstance(result, DataResponse)
     # No details
     monkeypatch.setattr(
-        "src.monitoring.health.health_registry.run_all",
+        "fastcore.monitoring.health.health_registry.run_all",
         AsyncMock(
             return_value={
                 "status": HealthStatus.HEALTHY,
@@ -182,7 +184,9 @@ def test_setup_health_endpoint_registers(monkeypatch):
     settings.HEALTH_PATH = "/health"
     settings.HEALTH_INCLUDE_DETAILS = True
     logger = MagicMock()
-    monkeypatch.setattr("src.monitoring.health.health_registry", HealthCheckRegistry())
+    monkeypatch.setattr(
+        "fastcore.monitoring.health.health_registry", HealthCheckRegistry()
+    )
     setup_health_endpoint(app, settings, logger)
     app.include_router.assert_called_once()
     logger.info.assert_called()
@@ -194,11 +198,11 @@ def test_setup_monitoring(monkeypatch):
     logger = MagicMock()
     called = {}
     monkeypatch.setattr(
-        "src.monitoring.manager.setup_health_endpoint",
+        "fastcore.monitoring.manager.setup_health_endpoint",
         lambda *a, **kw: called.setdefault("health", True),
     )
     monkeypatch.setattr(
-        "src.monitoring.manager.setup_metrics_endpoint",
+        "fastcore.monitoring.manager.setup_metrics_endpoint",
         lambda *a, **kw: called.setdefault("metrics", True),
     )
     from fastcore.monitoring.manager import setup_monitoring
@@ -237,10 +241,10 @@ async def test_prometheus_middleware_normal(monkeypatch):
     request.method = "GET"
     call_next = AsyncMock(return_value=MagicMock(status_code=200))
     # Patch prometheus metrics to avoid side effects
-    monkeypatch.setattr("src.monitoring.metrics.REQUEST_IN_PROGRESS", MagicMock())
-    monkeypatch.setattr("src.monitoring.metrics.REQUEST_LATENCY", MagicMock())
-    monkeypatch.setattr("src.monitoring.metrics.REQUEST_COUNT", MagicMock())
-    monkeypatch.setattr("src.monitoring.metrics.EXCEPTIONS_COUNT", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_IN_PROGRESS", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_LATENCY", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_COUNT", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.EXCEPTIONS_COUNT", MagicMock())
     result = await middleware.dispatch(request, call_next)
     assert result.status_code == 200
 
@@ -257,10 +261,10 @@ async def test_prometheus_middleware_exception(monkeypatch):
         raise ValueError("fail")
 
     call_next = AsyncMock(side_effect=raise_exc)
-    monkeypatch.setattr("src.monitoring.metrics.REQUEST_IN_PROGRESS", MagicMock())
-    monkeypatch.setattr("src.monitoring.metrics.REQUEST_LATENCY", MagicMock())
-    monkeypatch.setattr("src.monitoring.metrics.REQUEST_COUNT", MagicMock())
-    monkeypatch.setattr("src.monitoring.metrics.EXCEPTIONS_COUNT", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_IN_PROGRESS", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_LATENCY", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_COUNT", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.EXCEPTIONS_COUNT", MagicMock())
     with pytest.raises(ValueError):
         await middleware.dispatch(request, call_next)
 
@@ -271,8 +275,8 @@ def test_setup_metrics_endpoint(monkeypatch):
     settings.METRICS_PATH = "/metrics"
     settings.METRICS_EXCLUDE_PATHS = ["/metrics", "/health"]
     logger = MagicMock()
-    monkeypatch.setattr("src.monitoring.metrics.PrometheusMiddleware", MagicMock())
-    monkeypatch.setattr("src.monitoring.metrics.Gauge", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.PrometheusMiddleware", MagicMock())
+    monkeypatch.setattr("fastcore.monitoring.metrics.Gauge", MagicMock())
     setup_metrics_endpoint(app, settings, logger)
     app.add_middleware.assert_called()
     app.include_router.assert_called()

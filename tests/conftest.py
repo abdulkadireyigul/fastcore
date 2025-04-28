@@ -39,7 +39,9 @@ def dummy_settings(monkeypatch):
         JWT_REFRESH_TOKEN_EXPIRE_DAYS = 7
         JWT_ALLOWED_AUDIENCES = ["aud"]
 
-    monkeypatch.setattr("src.security.tokens.get_settings", lambda: DummySettings())
+    monkeypatch.setattr(
+        "fastcore.security.tokens.get_settings", lambda: DummySettings()
+    )
     return DummySettings()
 
 

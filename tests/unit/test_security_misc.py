@@ -86,7 +86,7 @@ def test_token_model_properties():
 @pytest.mark.asyncio
 async def test_get_token_data_success():
     with patch(
-        "src.security.dependencies.validate_token",
+        "fastcore.security.dependencies.validate_token",
         new_callable=AsyncMock,
         return_value={"sub": "user1"},
     ):
@@ -99,7 +99,7 @@ async def test_get_token_data_success():
 @pytest.mark.asyncio
 async def test_get_token_data_expired():
     with patch(
-        "src.security.dependencies.validate_token",
+        "fastcore.security.dependencies.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.ExpiredTokenError(),
     ):
@@ -111,7 +111,7 @@ async def test_get_token_data_expired():
 @pytest.mark.asyncio
 async def test_get_token_data_revoked():
     with patch(
-        "src.security.dependencies.validate_token",
+        "fastcore.security.dependencies.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.RevokedTokenError(),
     ):
@@ -123,7 +123,7 @@ async def test_get_token_data_revoked():
 @pytest.mark.asyncio
 async def test_get_token_data_invalid():
     with patch(
-        "src.security.dependencies.validate_token",
+        "fastcore.security.dependencies.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.InvalidTokenError("fail"),
     ):
@@ -174,7 +174,7 @@ async def test_get_current_user_dependency_exception():
 @pytest.mark.asyncio
 async def test_get_refresh_token_data_success():
     with patch(
-        "src.security.dependencies.validate_token",
+        "fastcore.security.dependencies.validate_token",
         new_callable=AsyncMock,
         return_value={"sub": "user1"},
     ):
@@ -187,7 +187,7 @@ async def test_get_refresh_token_data_success():
 @pytest.mark.asyncio
 async def test_get_refresh_token_data_expired():
     with patch(
-        "src.security.dependencies.validate_token",
+        "fastcore.security.dependencies.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.ExpiredTokenError(),
     ):
@@ -201,7 +201,7 @@ async def test_get_refresh_token_data_expired():
 @pytest.mark.asyncio
 async def test_get_refresh_token_data_revoked():
     with patch(
-        "src.security.dependencies.validate_token",
+        "fastcore.security.dependencies.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.RevokedTokenError(),
     ):
@@ -215,7 +215,7 @@ async def test_get_refresh_token_data_revoked():
 @pytest.mark.asyncio
 async def test_get_refresh_token_data_invalid():
     with patch(
-        "src.security.dependencies.validate_token",
+        "fastcore.security.dependencies.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.InvalidTokenError("fail"),
     ):
@@ -229,7 +229,7 @@ async def test_get_refresh_token_data_invalid():
 @pytest.mark.asyncio
 async def test_refresh_token_success():
     with patch(
-        "src.security.dependencies.refresh_access_token",
+        "fastcore.security.dependencies.refresh_access_token",
         new_callable=AsyncMock,
         return_value="newtoken",
     ):
@@ -240,7 +240,7 @@ async def test_refresh_token_success():
 @pytest.mark.asyncio
 async def test_refresh_token_error():
     with patch(
-        "src.security.dependencies.refresh_access_token",
+        "fastcore.security.dependencies.refresh_access_token",
         new_callable=AsyncMock,
         side_effect=dependencies.InvalidTokenError("fail"),
     ):
@@ -252,7 +252,7 @@ async def test_refresh_token_error():
 @pytest.mark.asyncio
 async def test_logout_user_success():
     with patch(
-        "src.security.dependencies.revoke_token", new_callable=AsyncMock
+        "fastcore.security.dependencies.revoke_token", new_callable=AsyncMock
     ) as mock_revoke:
         response = MagicMock()
         result = await dependencies.logout_user(
@@ -268,7 +268,7 @@ async def test_logout_user_success():
 @pytest.mark.asyncio
 async def test_logout_user_error():
     with patch(
-        "src.security.dependencies.revoke_token",
+        "fastcore.security.dependencies.revoke_token",
         new_callable=AsyncMock,
         side_effect=Exception("fail"),
     ):
