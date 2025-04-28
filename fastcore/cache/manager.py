@@ -39,9 +39,13 @@ def setup_cache(
 
     async def init_cache():
         global cache
-        cache = RedisCache(url=url, default_ttl=ttl, prefix=prefix, logger=log)
-        await cache.init()
-        log.info(f"RedisCache initialized (url={url})")
+        try:
+            cache = RedisCache(url=url, default_ttl=ttl, prefix=prefix, logger=log)
+            await cache.init()
+            log.info(f"RedisCache initialized (url={url})")
+        except Exception as e:
+            cache = None
+            log.error(f"RedisCache initialization failed: {e}")
 
     async def shutdown_cache():
         if cache:

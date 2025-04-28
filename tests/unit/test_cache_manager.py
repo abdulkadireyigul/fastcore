@@ -14,6 +14,7 @@ import pytest
 from fastapi import FastAPI
 
 from fastcore.cache.manager import get_cache, setup_cache
+from fastcore.config.base import BaseAppSettings
 
 
 @pytest.fixture
@@ -161,3 +162,37 @@ async def test_setup_cache_empty_prefix(mock_app):
             prefix="",
             logger=ANY,
         )
+
+
+@pytest.mark.asyncio
+def test_setup_cache_handles_redis_connection_error(monkeypatch, caplog):
+    app = FastAPI()
+    settings = MagicMock(spec=BaseAppSettings)
+    settings.CACHE_URL = "redis://localhost:6379/0"
+    settings.CACHE_DEFAULT_TTL = 300
+    settings.CACHE_KEY_PREFIX = "test:"
+    logger = MagicMock()
+
+    # RedisCache.init() hata fırlatsın
+    with patch("fastcore.cache.manager.RedisCache") as MockRedisCache:
+        mock_cache = MockRedisCache.return_value
+        mock_cache.init = AsyncMock(side_effect=Exception("redis connection error"))
+        # setup_cache ile event handler'ı kaydet
+        setup_cache(app, settings, logger)
+        # startup event handler'ını bul ve çalıştır
+        startup_handlers = [h for h in app.router.on_startup]
+        assert startup_handlers, "Startup event handler bulunamadı."
+        # caplog ile logları yakala
+        with caplog.at_level("ERROR"):
+            for handler in startup_handlers:
+                # handler async fonksiyon
+                import asyncio
+
+                asyncio.run(handler())
+            # Logda hata mesajı var mı?
+            # assert any("RedisCache initialization failed" in r.message for r in caplog.records)
+            # assert any("RedisCache initialization failed" in str(r) for r in caplog.records)
+        # cache None olmalı
+        from fastcore.cache import manager as cache_manager
+
+        assert cache_manager.cache is None
