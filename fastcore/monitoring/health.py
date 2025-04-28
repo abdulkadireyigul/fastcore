@@ -141,20 +141,17 @@ async def redis_health_check():
         return {"status": HealthStatus.UNHEALTHY, "details": {"error": str(e)}}
 
 
-async def db_health_check(db=Depends(get_db)):
+async def db_health_check():
     """
     Check database connectivity.
-
-    Args:
-        db: Database session from dependency injection
 
     Returns:
         Health check result for database
     """
     try:
-        # Simple query to verify database connectivity
-        result = await db.execute("SELECT 1")
-        return {"status": HealthStatus.HEALTHY, "details": {"connected": True}}
+        async for db in get_db():
+            result = await db.execute("SELECT 1")
+            return {"status": HealthStatus.HEALTHY, "details": {"connected": True}}
     except Exception as e:
         return {
             "status": HealthStatus.UNHEALTHY,

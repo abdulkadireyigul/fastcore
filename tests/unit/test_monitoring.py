@@ -97,7 +97,12 @@ async def test_redis_health_check_failure(monkeypatch):
 async def test_db_health_check_success(monkeypatch):
     mock_db = AsyncMock()
     mock_db.execute.return_value = 1
-    result = await db_health_check(mock_db)
+
+    async def fake_get_db():
+        yield mock_db
+
+    monkeypatch.setattr("fastcore.monitoring.health.get_db", fake_get_db)
+    result = await db_health_check()
     assert result["status"] == HealthStatus.HEALTHY
     assert result["details"]["connected"] is True
 
@@ -106,17 +111,27 @@ async def test_db_health_check_success(monkeypatch):
 async def test_db_health_check_failure(monkeypatch):
     mock_db = AsyncMock()
     mock_db.execute.side_effect = Exception("fail")
-    result = await db_health_check(mock_db)
+
+    async def fake_get_db():
+        yield mock_db
+
+    monkeypatch.setattr("fastcore.monitoring.health.get_db", fake_get_db)
+    result = await db_health_check()
     assert result["status"] == HealthStatus.UNHEALTHY
     assert result["details"]["connected"] is False
     assert "fail" in result["details"]["error"]
 
 
 @pytest.mark.asyncio
-async def test_db_health_check_exception():
+async def test_db_health_check_exception(monkeypatch):
     mock_db = AsyncMock()
     mock_db.execute.side_effect = Exception("db fail")
-    result = await db_health_check(mock_db)
+
+    async def fake_get_db():
+        yield mock_db
+
+    monkeypatch.setattr("fastcore.monitoring.health.get_db", fake_get_db)
+    result = await db_health_check()
     assert result["status"] == HealthStatus.UNHEALTHY
     assert result["details"]["connected"] is False
     assert "db fail" in result["details"]["error"]
