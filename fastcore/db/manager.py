@@ -3,8 +3,9 @@ from typing import AsyncGenerator, Optional
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import fastcore.db.engine as db_engine
 from fastcore.config.base import BaseAppSettings
-from fastcore.db.engine import SessionLocal, init_db, shutdown_db
+from fastcore.db.engine import init_db, shutdown_db
 from fastcore.errors.exceptions import DBError
 from fastcore.logging import Logger, ensure_logger
 
@@ -41,17 +42,13 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     log = ensure_logger(None, __name__)
 
     log.warning(
-        f"get_db: SessionLocal={SessionLocal!r}, id={id(SessionLocal)}, module={getattr(SessionLocal, '__module__', None)}"
+        f"get_db: SessionLocal={db_engine.SessionLocal!r}, id={id(db_engine.SessionLocal)}, module={getattr(db_engine.SessionLocal, '__module__', None)}"
     )
 
-    if SessionLocal is None:
+    if db_engine.SessionLocal is None:
         raise DBError(message="Database not initialized")
 
-    # log = ensure_logger(None, __name__)
-
-    log.info(f"SessionLocal at get_db: {SessionLocal}")
-
-    async with SessionLocal() as session:
+    async with db_engine.SessionLocal() as session:
         try:
             yield session
             await session.commit()
