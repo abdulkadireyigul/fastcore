@@ -21,7 +21,6 @@ class SimpleRateLimitMiddleware(BaseHTTPMiddleware):
         self.window_seconds = window_seconds
         self.requests = {}
         self.logger = logger
-        # if logger:
         logger.info(
             f"Initialized SimpleRateLimitMiddleware (memory) with max_requests={max_requests}, window_seconds={window_seconds}"
         )
@@ -34,7 +33,6 @@ class SimpleRateLimitMiddleware(BaseHTTPMiddleware):
         self.requests.setdefault(key, 0)
         self.requests[key] += 1
         if self.requests[key] > self.max_requests:
-            # if self.logger:
             self.logger.warning(
                 f"Rate limit exceeded for IP {ip} (memory backend): {self.requests[key]} requests in window {window}"
             )
@@ -52,7 +50,6 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.logger = logger
-        # if logger:
         logger.info(
             f"Initialized RedisRateLimitMiddleware with max_requests={max_requests}, window_seconds={window_seconds}"
         )
@@ -62,17 +59,30 @@ class RedisRateLimitMiddleware(BaseHTTPMiddleware):
         now = int(time.time())
         window = now // self.window_seconds
         key = f"ratelimit:{ip}:{window}"
-        cache = await get_cache()
-        count = await cache.incr(key)
-        if count == 1:
-            await cache.expire(key, self.window_seconds)
-        if count > self.max_requests:
-            # if self.logger:
-            self.logger.warning(
-                f"Rate limit exceeded for IP {ip} (redis backend): {count} requests in window {window}"
+        try:
+            cache = await get_cache()
+            count = await cache.incr(key)
+            if count == 1:
+                await cache.expire(key, self.window_seconds)
+            if count > self.max_requests:
+                self.logger.warning(
+                    f"Rate limit exceeded for IP {ip} (redis backend): {count} requests in window {window}"
+                )
+                return Response("Too Many Requests", status_code=429)
+            return await call_next(request)
+        except Exception as e:
+            self.logger.error(
+                f"Rate limiting backend unavailable, falling back to memory: {e}"
             )
-            return Response("Too Many Requests", status_code=429)
-        return await call_next(request)
+            # Memory fallback
+            if not hasattr(self, "_memory_fallback"):
+                self._memory_fallback = SimpleRateLimitMiddleware(
+                    self.app,
+                    max_requests=self.max_requests,
+                    window_seconds=self.window_seconds,
+                    logger=self.logger,
+                )
+            return await self._memory_fallback.dispatch(request, call_next)
 
 
 def add_rate_limiting_middleware(
@@ -85,19 +95,13 @@ def add_rate_limiting_middleware(
         settings, "RATE_LIMITING_OPTIONS", {"max_requests": 60, "window_seconds": 60}
     )
     backend = getattr(settings, "RATE_LIMITING_BACKEND", "memory")
-    # if logger:
     logger.info(
         f"Configuring rate limiting middleware with backend={backend}, options={opts}"
     )
 
-    # manager_mod = sys.modules.get("fastcore.cache.manager")
-    # cache = getattr(manager_mod, "cache", None)
-
     if backend == "redis":
         app.add_middleware(RedisRateLimitMiddleware, logger=logger, **opts)
-        # if logger:
         logger.debug("RedisRateLimitMiddleware added to FastAPI application.")
     else:
         app.add_middleware(SimpleRateLimitMiddleware, logger=logger, **opts)
-        # if logger:
         logger.debug("SimpleRateLimitMiddleware added to FastAPI application.")
