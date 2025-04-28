@@ -180,4 +180,35 @@ class BaseAppSettings(BaseSettings):
                 )
         return value
 
+    @field_validator("DATABASE_URL", mode="before")
+    def validate_database_url(cls, value):
+        """
+        Ensure DATABASE_URL uses asyncpg for PostgreSQL connections.
+        """
+        if (
+            value
+            and value.startswith("postgresql://")
+            and not value.startswith("postgresql+asyncpg://")
+        ):
+            raise ValueError(
+                "DATABASE_URL must start with 'postgresql+asyncpg://' for asyncpg driver. "
+                "You provided a URL starting with 'postgresql://', which will cause psycopg2 errors. "
+                "Please update your DATABASE_URL to use the correct format."
+            )
+        return value
+
+    @field_validator("CACHE_URL", mode="before")
+    def validate_cache_url(cls, value):
+        """
+        Ensure CACHE_URL uses redis:// or rediss:// scheme.
+        """
+        if value and not (
+            value.startswith("redis://") or value.startswith("rediss://")
+        ):
+            raise ValueError(
+                "CACHE_URL must start with 'redis://' or 'rediss://'. "
+                f"You provided: {value}"
+            )
+        return value
+
     model_config = ConfigDict(env_file=".env", case_sensitive=True)

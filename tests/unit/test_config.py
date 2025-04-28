@@ -7,6 +7,7 @@ These tests cover:
 - Field validators for JWT audience and allowed audiences
 - Environment selection logic (development, testing, production)
 - Edge cases for explicit values
+- Validators for DATABASE_URL and CACHE_URL
 
 All tests use fixtures and monkeypatching to ensure isolation and avoid code duplication.
 """
@@ -93,3 +94,49 @@ def test_get_settings_env(monkeypatch):
     monkeypatch.setenv("APP_ENV", "development")
     settings = gs()
     assert settings.__class__.__name__ == "DevelopmentSettings"
+
+
+# DATABASE_URL validator tests
+def test_database_url_asyncpg_required():
+    with pytest.raises(
+        ValueError, match=r"DATABASE_URL must start with 'postgresql\+asyncpg://'"
+    ):
+        BaseAppSettings(
+            DATABASE_URL="postgresql://user:pass@localhost/db",
+            CACHE_URL="redis://localhost:6379/0",
+            JWT_SECRET_KEY="x",
+        )
+
+
+def test_database_url_asyncpg_valid():
+    settings = BaseAppSettings(
+        DATABASE_URL="postgresql+asyncpg://user:pass@localhost/db",
+        CACHE_URL="redis://localhost:6379/0",
+        JWT_SECRET_KEY="x",
+    )
+    assert settings.DATABASE_URL.startswith("postgresql+asyncpg://")
+
+
+# CACHE_URL validator tests
+def test_cache_url_redis_required():
+    with pytest.raises(ValueError, match="CACHE_URL must start with 'redis://'"):
+        BaseAppSettings(
+            DATABASE_URL="postgresql+asyncpg://user:pass@localhost/db",
+            CACHE_URL="http://localhost:6379/0",
+            JWT_SECRET_KEY="x",
+        )
+
+
+def test_cache_url_redis_valid():
+    settings = BaseAppSettings(
+        DATABASE_URL="postgresql+asyncpg://user:pass@localhost/db",
+        CACHE_URL="redis://localhost:6379/0",
+        JWT_SECRET_KEY="x",
+    )
+    assert settings.CACHE_URL.startswith("redis://")
+    settings2 = BaseAppSettings(
+        DATABASE_URL="postgresql+asyncpg://user:pass@localhost/db",
+        CACHE_URL="rediss://localhost:6379/0",
+        JWT_SECRET_KEY="x",
+    )
+    assert settings2.CACHE_URL.startswith("rediss://")
