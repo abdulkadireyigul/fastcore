@@ -243,3 +243,18 @@ async def test_incr_raises_on_error():
     cache._redis.incrby = AsyncMock(side_effect=Exception("fail"))
     with pytest.raises(Exception, match="fail"):
         await cache.incr("counter")
+
+
+@pytest.mark.asyncio
+async def test_expire_sets_ttl(cache):
+    cache._redis = AsyncMock()
+    await cache.expire("foo", 42)
+    cache._redis.expire.assert_awaited_once_with("test:foo", 42)
+
+
+@pytest.mark.asyncio
+async def test_expire_raises_on_error(cache):
+    cache._redis = AsyncMock()
+    cache._redis.expire.side_effect = Exception("fail")
+    with pytest.raises(Exception, match="fail"):
+        await cache.expire("foo", 42)

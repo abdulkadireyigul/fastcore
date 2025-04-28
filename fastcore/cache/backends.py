@@ -113,6 +113,16 @@ class RedisCache(BaseCache):
             self._logger.error(f"Cache incr error for key {full_key}: {e}")
             raise
 
+    async def expire(self, key: str, ttl: int) -> None:
+        await self._ensure_connection()
+        full_key = f"{self._prefix}{key}"
+        try:
+            await self._redis.expire(full_key, ttl)
+            self._logger.debug(f"Cache expire set for key: {full_key} (ttl={ttl})")
+        except Exception as e:
+            self._logger.error(f"Cache expire error for key {full_key}: {e}")
+            raise
+
     async def close(self) -> None:
         try:
             if self._redis is not None:
