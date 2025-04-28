@@ -16,7 +16,7 @@ SQL database integration for FastAPI applications using SQLAlchemy, with async s
 Install the required dependencies:
 
 ```bash
-pip install sqlalchemy>=2.0.0 asyncpg>=0.27.0
+poetry add sqlalchemy asyncpg
 ```
 
 ## Configuration

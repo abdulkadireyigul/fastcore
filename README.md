@@ -20,14 +20,14 @@ Core utilities and modules for building robust FastAPI applications with minimal
 Install the package and required dependencies:
 
 ```bash
-pip install fastcore redis sqlalchemy asyncpg pydantic passlib[bcrypt] pyjwt prometheus_client
+poetry add fastcore redis sqlalchemy asyncpg pydantic passlib[bcrypt] pyjwt prometheus_client
 ```
 
 > If loading from source:
 > ```bash
 > git clone https://github.com/your-org/fastcore.git
 > cd fastcore
-> pip install .[all]
+> poetry install --all-extras
 > ```
 
 ## Quick Start

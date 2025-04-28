@@ -15,7 +15,7 @@ A Redis-based cache module for FastAPI applications, providing simple cache oper
 Install the Redis client:
 
 ```bash
-pip install aioredis
+poetry add redis
 ```
 
 ## Configuration

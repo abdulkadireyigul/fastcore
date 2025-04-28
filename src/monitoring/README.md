@@ -8,6 +8,14 @@ Provides monitoring, metrics collection, and health check features for FastAPI a
 - **Metrics Collection**: Prometheus metrics integration for request tracking
 - **Correlation/Request ID**: Request tracking with correlation/request IDs (not full distributed tracing)
 
+## Installation
+
+Install the monitoring dependencies:
+
+```bash
+poetry add fastapi prometheus_client
+```
+
 ## Configuration
 
 Configure monitoring through environment variables or settings class:

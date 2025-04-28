@@ -16,7 +16,7 @@ Authentication and authorization utilities for FastAPI applications, with JWT to
 Install the required dependencies:
 
 ```bash
-pip install pyjwt passlib[bcrypt]
+poetry add pyjwt passlib[bcrypt]
 ```
 
 ## Configuration

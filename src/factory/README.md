@@ -2,6 +2,14 @@
 
 Provides a single-entrypoint to configure a FastAPI application with all FastCore core modules.
 
+## Installation
+
+Install FastCore (factory auto-includes all dependencies):
+
+```bash
+poetry add fastcore
+```
+
 ## Usage
 
 In your FastAPI application:

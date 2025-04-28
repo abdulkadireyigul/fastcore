@@ -10,6 +10,14 @@ Provides standardized error handling and exception management for FastAPI applic
 - Debug mode support (detailed errors in development, sanitized in production)
 - Integration with logging system
 
+## Installation
+
+Install the required dependencies:
+
+```bash
+poetry add fastapi
+```
+
 ## Usage
 
 ### Raising Errors

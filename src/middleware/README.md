@@ -9,6 +9,14 @@ Provides common middleware components for FastAPI applications with consistent c
 - Request timing middleware
 - Centralized middleware setup
 
+## Installation
+
+Install the required dependencies:
+
+```bash
+poetry add fastapi
+```
+
 ## Configuration
 
 Configure middleware through environment variables or settings class:

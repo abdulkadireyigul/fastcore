@@ -12,10 +12,10 @@ Configuration management for FastAPI applications that provides a simple, enviro
 
 ## Installation
 
-Requires pydantic and pydantic-settings:
+Install Pydantic and pydantic-settings:
 
 ```bash
-pip install pydantic pydantic-settings
+poetry add pydantic pydantic-settings
 ```
 
 ## Usage

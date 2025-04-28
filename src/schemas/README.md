@@ -10,6 +10,14 @@ Standardized API response schemas for FastAPI applications that provide consiste
 - Type-safe response models with Pydantic
 - Reusable base models for common patterns
 
+## Installation
+
+Install the required dependencies:
+
+```bash
+poetry add fastapi pydantic
+```
+
 ## Usage
 
 ### Basic Data Response
