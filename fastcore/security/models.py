@@ -8,7 +8,7 @@ particularly for stateful token management.
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, String
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String
 
 from fastcore.db.base import BaseModel
 
@@ -34,16 +34,16 @@ class Token(BaseModel):
 
     __tablename__ = "tokens"
 
-    # id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     token_id = Column(String, unique=True, nullable=False, index=True)
-    user_id = Column(String, nullable=False, index=True)
+    # user_id = Column(String, nullable=False, index=True)
     token_type = Column(Enum(TokenType), nullable=False, default=TokenType.ACCESS)
     revoked = Column(Boolean, default=False, nullable=False)
     expires_at = Column(DateTime, nullable=False)
-    # created_at = Column(DateTime, default=func.now(), nullable=False)
-    # updated_at = Column(
-    #     DateTime, default=func.now(), onupdate=func.now(), nullable=False
-    # )
+
+    # Foreign keys
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
 
     def __repr__(self):
         return f"<Token(token_id={self.token_id}, user_id={self.user_id}, type={self.token_type}, revoked={self.revoked})>"
