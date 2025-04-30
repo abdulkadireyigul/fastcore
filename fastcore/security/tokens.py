@@ -51,7 +51,7 @@ class TokenRepository(BaseRepository[Token]):
             logger.info(f"Revoked token {token_id}")
 
     async def revoke_all_user_tokens(
-        self, user_id: str, exclude_token_id: Optional[str] = None
+        self, user_id: int, exclude_token_id: Optional[str] = None
     ) -> None:
         """
         Revoke all tokens for a specific user.
@@ -80,7 +80,7 @@ class TokenRepository(BaseRepository[Token]):
             logger.error(f"Error in revoke_all_user_tokens: {e}")
             raise DBError(message=str(e))
 
-    async def get_refresh_token_for_user(self, user_id: str) -> Optional[Token]:
+    async def get_refresh_token_for_user(self, user_id: int) -> Optional[Token]:
         """Get a valid refresh token for a user."""
         try:
             now = datetime.now(timezone.utc)
@@ -163,7 +163,7 @@ async def create_access_token(
         await repo.create(
             {
                 "token_id": token_id,
-                "user_id": str(data.get("sub", "unknown")),
+                "user_id": int(data.get("sub", -1)),
                 "token_type": TokenType.ACCESS,
                 "expires_at": expire,
             }
@@ -238,7 +238,7 @@ async def create_refresh_token(
         await repo.create(
             {
                 "token_id": token_id,
-                "user_id": str(data.get("sub", "unknown")),
+                "user_id": int(data.get("sub", -1)),
                 "token_type": TokenType.REFRESH,
                 "expires_at": expire,
             }

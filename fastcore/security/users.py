@@ -41,7 +41,7 @@ class UserAuthentication(Protocol[UserModelT]):
         """
         ...
 
-    async def get_user_by_id(self, user_id: str) -> Optional[UserModelT]:
+    async def get_user_by_id(self, user_id: int) -> Optional[UserModelT]:
         """
         Get a user by their ID.
 
@@ -53,7 +53,7 @@ class UserAuthentication(Protocol[UserModelT]):
         """
         ...
 
-    def get_user_id(self, user: UserModelT) -> str:
+    def get_user_id(self, user: UserModelT) -> int:
         """
         Extract the user ID from a user model instance.
 
@@ -61,7 +61,7 @@ class UserAuthentication(Protocol[UserModelT]):
             user: User model instance
 
         Returns:
-            String representation of the user ID
+            Integer representation of the user ID
         """
         ...
 
@@ -109,7 +109,7 @@ class BaseUserAuthentication(Generic[UserModelT], abc.ABC):
         pass
 
     @abc.abstractmethod
-    async def get_user_by_id(self, user_id: str) -> Optional[UserModelT]:
+    async def get_user_by_id(self, user_id: int) -> Optional[UserModelT]:
         """
         Get a user by their ID.
 
@@ -122,7 +122,7 @@ class BaseUserAuthentication(Generic[UserModelT], abc.ABC):
         pass
 
     @abc.abstractmethod
-    def get_user_id(self, user: UserModelT) -> str:
+    def get_user_id(self, user: UserModelT) -> int:
         """
         Extract the user ID from a user model instance.
 

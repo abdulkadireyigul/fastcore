@@ -65,7 +65,7 @@ def test_token_model_properties():
     now = datetime.now(timezone.utc)
     token = Token(
         token_id="tid",
-        user_id="uid",
+        user_id=25,
         token_type=TokenType.ACCESS,
         revoked=False,
         expires_at=now + timedelta(hours=1),

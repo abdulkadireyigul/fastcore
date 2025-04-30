@@ -24,12 +24,12 @@ class DummyAuth(BaseUserAuthentication[DummyUser]):
             credentials.get("username") == "user"
             and credentials.get("password") == "pass"
         ):
-            return DummyUser("123")
+            return DummyUser(25)
         return None
 
     async def get_user_by_id(self, user_id):
-        if user_id == "123":
-            return DummyUser("123")
+        if user_id == 25:
+            return DummyUser(25)
         return None
 
     def get_user_id(self, user):
@@ -49,8 +49,8 @@ async def test_dummy_auth_success(dummy_session):
     auth = DummyAuth(session=dummy_session)
     user = await auth.authenticate({"username": "user", "password": "pass"})
     assert isinstance(user, DummyUser)
-    assert auth.get_user_id(user) == "123"
-    user2 = await auth.get_user_by_id("123")
+    assert auth.get_user_id(user) == 25
+    user2 = await auth.get_user_by_id(25)
     assert isinstance(user2, DummyUser)
 
 
