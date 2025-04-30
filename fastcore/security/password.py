@@ -5,7 +5,7 @@ This module provides functions for hashing and verifying passwords
 using bcrypt through the passlib library.
 """
 
-from passlib.context import CryptContext
+from passlib.context import CryptContext  # type: ignore
 
 # Create a password context for bcrypt hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

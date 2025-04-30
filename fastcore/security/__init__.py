@@ -1,9 +1,11 @@
 """
-Security utilities for FastAPI applications.
+Security module root.
 
-This module provides stateful authentication utilities
-for FastAPI applications, including JWT authentication,
-password handling, and token management.
+This module provides stateful authentication utilities 
+for FastAPI applications, including JWT authentication, 
+password handling, user authentication, and token management. 
+All main security functions, models, helpers, and exceptions 
+are exported from this module for easy access.
 """
 
 from fastcore.security.dependencies import (
@@ -19,9 +21,10 @@ from fastcore.security.exceptions import (
     RevokedTokenError,
 )
 from fastcore.security.manager import get_security_status, setup_security
-from fastcore.security.models import TokenType
 from fastcore.security.password import get_password_hash, verify_password
-from fastcore.security.tokens import (
+from fastcore.security.tokens.models import TokenType
+from fastcore.security.tokens.repository import TokenRepository
+from fastcore.security.tokens.service import (
     create_access_token,
     create_refresh_token,
     create_token_pair,
@@ -30,6 +33,7 @@ from fastcore.security.tokens import (
     revoke_token,
     validate_token,
 )
+from fastcore.security.tokens.utils import encode_jwt, validate_jwt_stateless
 from fastcore.security.users import (
     AuthenticationError,
     BaseUserAuthentication,
@@ -45,7 +49,6 @@ __all__ = [
     "validate_token",
     "refresh_access_token",
     "revoke_token",
-    "revoke_all_tokens",
     # Password utilities
     "get_password_hash",
     "verify_password",
@@ -68,4 +71,9 @@ __all__ = [
     "RevokedTokenError",
     "InvalidCredentialsError",
     "AuthenticationError",
+    # Token repository
+    "TokenRepository",
+    # Token utils
+    "encode_jwt",
+    "validate_jwt_stateless",
 ]

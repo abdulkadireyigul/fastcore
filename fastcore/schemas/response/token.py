@@ -26,7 +26,9 @@ class TokenResponse(BaseModel):
         default="bearer", description="Type of authentication token"
     )
     access_token: str = Field(..., description="JWT access token")
-    expires_in: int = Field(..., description="Token expiration time in seconds")
+    expires_in: Optional[int] = Field(
+        ..., description="Token expiration time in seconds"
+    )
     refresh_token: Optional[str] = Field(
         default=None, description="Optional refresh token"
     )
