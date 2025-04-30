@@ -13,7 +13,7 @@ from fastcore.security.exceptions import (
     InvalidTokenError,
     RevokedTokenError,
 )
-from fastcore.security.tokens.models import TokenType
+from fastcore.security.tokens.models import Token, TokenType
 from fastcore.security.tokens.repository import TokenRepository
 
 from .utils import decode_token, validate_jwt_stateless
@@ -55,7 +55,7 @@ async def create_token(
 
     encoded_jwt = encode_jwt(to_encode)
     try:
-        repo = TokenRepository(session=session)
+        repo = TokenRepository(Token, session=session)
         await repo.create(
             {
                 "token_id": token_id,
@@ -97,12 +97,20 @@ async def create_token_pair(
 ) -> Dict[str, str]:
     access_token = await create_access_token(data, session)
     refresh_token = await create_refresh_token(data, session)
+    # settings = get_settings()
+    # expires_in = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    # return TokenResponse(
+    #     access_token=access_token,
+    #     refresh_token=refresh_token,
+    #     token_type="bearer",
+    #     # expires_in=expires_in,
+    # ).dict()
 
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        token_type="bearer",
-    ).dict()
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+    }
 
 
 async def validate_token(
@@ -111,7 +119,7 @@ async def validate_token(
     payload = await validate_jwt_stateless(token, token_type)
     try:
         token_id = payload["jti"]
-        repo = TokenRepository(session=session)
+        repo = TokenRepository(Token, session=session)
         token_record = await repo.get_by_token_id(token_id)
         if not token_record:
             raise InvalidTokenError(
@@ -165,7 +173,7 @@ async def revoke_token(token: str, session: AsyncSession) -> None:
                 message="Token missing required 'sub' claim",
                 details={"error": "Missing sub claim"},
             )
-        repo = TokenRepository(session=session)
+        repo = TokenRepository(Token, session=session)
         token_record = await repo.get_by_token_id(token_id)
         if not token_record:
             raise InvalidTokenError(
