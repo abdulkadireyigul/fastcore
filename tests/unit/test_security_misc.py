@@ -16,7 +16,9 @@ from fastcore.security.exceptions import (
     InvalidTokenError,
     RevokedTokenError,
 )
-from fastcore.security.models import Token, TokenType
+
+# from fastcore.security.models import Token, TokenType
+from fastcore.security.tokens.models import Token, TokenType
 from tests.conftest import assert_http_exc
 
 # Use shared dummy_session and dummy_settings fixtures from conftest.py where needed
