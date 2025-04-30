@@ -2,6 +2,7 @@ import enum
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String
+from sqlalchemy.orm import relationship
 
 from fastcore.db.base import BaseModel
 
@@ -28,6 +29,8 @@ class Token(BaseModel):
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+
+    user = relationship("User", back_populates="tokens")
 
     def __repr__(self):
         return f"<Token(token_id={self.token_id}, user_id={self.user_id}, type={self.token_type}, revoked={self.revoked})>"

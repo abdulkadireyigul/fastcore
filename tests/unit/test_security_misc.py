@@ -8,7 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm import relationship
 
+from fastcore.db.base import BaseModel
 from fastcore.security import dependencies
 from fastcore.security.exceptions import (
     ExpiredTokenError,
@@ -16,6 +19,16 @@ from fastcore.security.exceptions import (
     InvalidTokenError,
     RevokedTokenError,
 )
+
+
+class User(BaseModel):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    username = Column(String, unique=True, index=True)
+    # tokens = relationship("Token",  back_populates="user")
+    tokens = relationship("Token", cascade="all, delete-orphan", back_populates="user")
+    __table_args__ = {"extend_existing": True}
+
 
 # from fastcore.security.models import Token, TokenType
 from fastcore.security.tokens.models import Token, TokenType
