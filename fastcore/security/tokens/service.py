@@ -191,3 +191,18 @@ async def revoke_token(token: str, session: AsyncSession) -> None:
         await session.rollback()
         logger.error(f"Error revoking token: {e}")
         raise DBError(message=f"Error revoking token", details={"error": str(e)})
+
+
+async def revoke_all_tokens_for_user(user_id: int, session: AsyncSession) -> None:
+    """
+    Revoke all tokens for a given user.
+    """
+    try:
+        repo = TokenRepository(Token, session=session)
+        await repo.revoke_all_for_user(user_id)
+        await session.commit()
+        logger.info(f"Revoked all tokens for user {user_id}")
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Error revoking all tokens for user {user_id}: {e}")
+        raise DBError(message=f"Error revoking all tokens", details={"error": str(e)})

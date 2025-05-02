@@ -21,6 +21,7 @@ from fastcore.security.tokens.service import (
     create_refresh_token,
     create_token_pair,
     refresh_access_token,
+    revoke_all_tokens_for_user,
     revoke_token,
     validate_token,
 )
@@ -702,3 +703,29 @@ def test_token_model_repr_and_properties():
         user_id=3,
     )
     assert revoked_token.is_valid is False
+
+
+@pytest.mark.asyncio
+async def test_revoke_all_tokens_for_user_success():
+    session = AsyncMock()
+    repo_mock = AsyncMock()
+    with patch(
+        "fastcore.security.tokens.service.TokenRepository", return_value=repo_mock
+    ):
+        await revoke_all_tokens_for_user(123, session)
+        repo_mock.revoke_all_for_user.assert_awaited_once_with(123)
+        session.commit.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_revoke_all_tokens_for_user_error():
+    session = AsyncMock()
+    repo_mock = AsyncMock()
+    repo_mock.revoke_all_for_user.side_effect = Exception("fail")
+    with patch(
+        "fastcore.security.tokens.service.TokenRepository", return_value=repo_mock
+    ):
+        with patch.object(session, "rollback", new_callable=AsyncMock) as rollback_mock:
+            with pytest.raises(Exception):
+                await revoke_all_tokens_for_user(123, session)
+            rollback_mock.assert_awaited_once()
