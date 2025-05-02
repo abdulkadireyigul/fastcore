@@ -152,16 +152,32 @@ async def test_create_token_pair_success(dummy_settings, dummy_session):
     with patch(
         "fastcore.security.tokens.service.create_access_token",
         new_callable=AsyncMock,
-        return_value="access",
+        return_value="access.jwt",
     ), patch(
         "fastcore.security.tokens.service.create_refresh_token",
         new_callable=AsyncMock,
-        return_value="refresh",
+        return_value="refresh.jwt",
+    ), patch(
+        "fastcore.security.tokens.service.decode_token",
+        side_effect=[
+            {
+                "exp": int(
+                    (datetime.now(timezone.utc) + timedelta(seconds=3600)).timestamp()
+                )
+            },
+            {
+                "exp": int(
+                    (datetime.now(timezone.utc) + timedelta(seconds=7200)).timestamp()
+                )
+            },
+        ],
     ):
         pair = await create_token_pair({"sub": 26}, dummy_session)
-        assert pair["access_token"] == "access"
-        assert pair["refresh_token"] == "refresh"
+        assert pair["access_token"] == "access.jwt"
+        assert pair["refresh_token"] == "refresh.jwt"
         assert pair["token_type"] == "bearer"
+        assert abs(pair["access_expires_in"] - 3600) < 5  # allow small delta
+        assert abs(pair["refresh_expires_in"] - 7200) < 5
 
 
 @pytest.mark.asyncio

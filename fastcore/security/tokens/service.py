@@ -96,21 +96,39 @@ async def create_token_pair(
     session: AsyncSession,
 ) -> Dict[str, str]:
     access_token = await create_access_token(data, session)
-    refresh_token = await create_refresh_token(data, session)
-    # settings = get_settings()
-    # expires_in = settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    # return TokenResponse(
-    #     access_token=access_token,
-    #     refresh_token=refresh_token,
-    #     token_type="bearer",
-    #     # expires_in=expires_in,
-    # ).dict()
+    access_payload = decode_token(access_token)
+    access_expires_at = access_payload.get("exp")
+    if access_expires_at:
+        access_expires_at = datetime.fromtimestamp(access_expires_at, tz=timezone.utc)
+    else:
+        access_expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=get_settings().JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        )
+    access_expires_delta = access_expires_at - datetime.now(timezone.utc)
 
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-    }
+    refresh_token = await create_refresh_token(data, session)
+    refresh_payload = decode_token(refresh_token)
+    refresh_expires_at = refresh_payload.get("exp")
+
+    if refresh_expires_at:
+        refresh_expires_at = datetime.fromtimestamp(refresh_expires_at, tz=timezone.utc)
+    else:
+        refresh_expires_at = datetime.now(timezone.utc) + timedelta(
+            days=get_settings().JWT_REFRESH_TOKEN_EXPIRE_DAYS
+        )
+    refresh_expires_delta = refresh_expires_at - datetime.now(timezone.utc)
+
+    logger.info(
+        f"Created access token {access_token} and refresh token {refresh_token} for user {data.get('sub', 'unknown')}"
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        access_expires_in=int(access_expires_delta.total_seconds()),
+        refresh_expires_in=int(refresh_expires_delta.total_seconds()),
+        token_type="bearer",
+    ).dict()
 
 
 async def validate_token(
