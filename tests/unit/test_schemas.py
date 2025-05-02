@@ -106,18 +106,24 @@ def test_list_response_with_items():
 
 # --- TokenResponse ---
 def test_token_response_required_fields():
-    """Test TokenResponse required and default fields."""
-    resp = TokenResponse(access_token="abc", expires_in=3600)
+    """Test TokenResponse required and default fields, including dual expirations."""
+    resp = TokenResponse(
+        access_token="abc",
+        access_expires_in=3600,
+        refresh_token="def",
+        refresh_expires_in=7200,
+    )
     assert resp.token_type == "bearer"
     assert resp.access_token == "abc"
-    assert resp.expires_in == 3600
-    assert resp.refresh_token is None
+    assert resp.access_expires_in == 3600
+    assert resp.refresh_token == "def"
+    assert resp.refresh_expires_in == 7200
 
 
 def test_token_response_missing_access_token_raises():
     """Test TokenResponse raises ValidationError if access_token is missing."""
     with pytest.raises(ValidationError):
-        TokenResponse(expires_in=3600)
+        TokenResponse(access_expires_in=3600)
 
 
 # --- Serialization ---
