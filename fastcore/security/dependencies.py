@@ -134,7 +134,7 @@ def get_current_user_dependency(
                 )
 
             # Get the user using the provided authentication handler
-            user = await auth_handler.get_user_by_id(user_id)
+            user = await auth_handler.get_user_by_id((user_id))
 
             if not user:
                 raise HTTPException(

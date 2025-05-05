@@ -151,10 +151,10 @@ async def test_get_token_data_invalid():
 async def test_get_current_user_dependency_success():
     handler = MagicMock()
     handler.get_user_by_id = AsyncMock(return_value="userobj")
-    dep = dependencies.get_current_user_dependency(handler)
-    result = await dep({"sub": "user1"})
+    dep = dependencies.get_current_user_dependency()
+    result = await dep({"sub": 26}, handler)
     assert result == "userobj"
-    handler.get_user_by_id.assert_awaited_once_with("user1")
+    handler.get_user_by_id.assert_awaited_once_with(26)
 
 
 @pytest.mark.asyncio
