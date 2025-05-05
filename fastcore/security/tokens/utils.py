@@ -29,6 +29,8 @@ def decode_token(token: str) -> Dict[str, Any]:
             token,
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
+            audience=settings.JWT_AUDIENCE,
+            issuer=settings.JWT_ISSUER,
             options={"verify_signature": True, "verify_exp": False},
         )
         return payload
