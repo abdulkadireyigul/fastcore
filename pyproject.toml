@@ -23,6 +23,7 @@ sqlalchemy = "^2.0.0"
 asyncpg = "^0.30.0"
 pyjwt = "^2.7.0"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+bcrypt = "^4.1.2"
 redis = "^5.0.0"
 prometheus-client = "^0.21.1"
 
