@@ -86,7 +86,8 @@ async def get_token_data(
 
 
 def get_current_user_dependency(
-    auth_handler: UserAuthentication[UserT],
+    # auth_handler: UserAuthentication[UserT],
+    auth_handler_dependency: Callable = Depends(),
 ) -> Callable[[Dict[str, Any]], UserT]:
     """
     Create a dependency function for getting the current authenticated user.
@@ -103,6 +104,7 @@ def get_current_user_dependency(
 
     async def current_user_dependency(
         token_data: Dict[str, Any] = Depends(get_token_data),
+        auth_handler: UserAuthentication[UserT] = Depends(auth_handler_dependency),
     ) -> UserT:
         """
         Get the current authenticated user from the token.
@@ -125,6 +127,12 @@ def get_current_user_dependency(
             )
 
         try:
+            if auth_handler is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Authentication handler is not initialized",
+                )
+
             # Get the user using the provided authentication handler
             user = await auth_handler.get_user_by_id(user_id)
 
