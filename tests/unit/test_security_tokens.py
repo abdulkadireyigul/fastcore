@@ -503,7 +503,7 @@ async def test_refresh_access_token_error_handling(dummy_session):
 async def test_revoke_token_success(dummy_settings, dummy_session):
     with patch(
         "fastcore.security.tokens.service.decode_token",
-        new_callable=AsyncMock,
+        # new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
         "fastcore.security.tokens.TokenRepository.get_by_token_id",
@@ -521,7 +521,7 @@ async def test_revoke_token_success(dummy_settings, dummy_session):
 async def test_revoke_token_already_revoked(dummy_settings, dummy_session):
     with patch(
         "fastcore.security.tokens.service.decode_token",
-        new_callable=AsyncMock,
+        # new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
         "fastcore.security.tokens.TokenRepository.get_by_token_id",
@@ -623,7 +623,7 @@ async def test_revoke_token_logger_info_branches(dummy_settings, dummy_session):
     # Already revoked
     with patch(
         "fastcore.security.tokens.service.decode_token",
-        new_callable=AsyncMock,
+        # new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
         "fastcore.security.tokens.TokenRepository.get_by_token_id",
@@ -634,7 +634,7 @@ async def test_revoke_token_logger_info_branches(dummy_settings, dummy_session):
     # Successfully revoked
     with patch(
         "fastcore.security.tokens.service.decode_token",
-        new_callable=AsyncMock,
+        # new_callable=AsyncMock,
         return_value={"jti": "id2", "sub": 27},
     ), patch(
         "fastcore.security.tokens.TokenRepository.get_by_token_id",

@@ -178,7 +178,7 @@ async def refresh_access_token(refresh_token: str, session: AsyncSession) -> str
 
 async def revoke_token(token: str, session: AsyncSession) -> None:
     try:
-        payload = await decode_token(token)
+        payload = decode_token(token)
         token_id = payload.get("jti")
         user_id = payload.get("sub")
         if not token_id:
