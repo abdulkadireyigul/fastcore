@@ -25,7 +25,7 @@ class Token(BaseModel):
     token_id = Column(String, unique=True, nullable=False, index=True)
     token_type = Column(Enum(TokenType), nullable=False, default=TokenType.ACCESS)
     revoked = Column(Boolean, default=False, nullable=False)
-    expires_at = Column(DateTime, nullable=False)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
     user_id = Column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
