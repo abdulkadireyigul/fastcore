@@ -31,6 +31,7 @@ class BaseAppSettings(BaseSettings):
         CACHE_DEFAULT_TTL: Default cache TTL in seconds
         CACHE_KEY_PREFIX: Optional prefix for cache keys
         DATABASE_URL: Database connection URL
+        ALEMBIC_DATABASE_URL: Synchronous database URL for Alembic migrations
         DB_ECHO: Enable SQL query logging (echo)
         DB_POOL_SIZE: Connection pool size for the database
         JWT_SECRET_KEY: Secret key for JWT token signing
@@ -67,6 +68,10 @@ class BaseAppSettings(BaseSettings):
 
     # Database configuration
     DATABASE_URL: str = Field(default=None, description="Database connection URL")
+    ALEMBIC_DATABASE_URL: Optional[str] = Field(
+        default=None,
+        description="Synchronous database URL for Alembic migrations (e.g., postgresql://...)",
+    )
     DB_ECHO: bool = Field(default=False, description="Enable SQL query logging (echo)")
     DB_POOL_SIZE: int = Field(
         default=5, description="Connection pool size for the database"
@@ -209,6 +214,20 @@ class BaseAppSettings(BaseSettings):
                 "CACHE_URL must start with 'redis://' or 'rediss://'. "
                 f"You provided: {value}"
             )
+        return value
+
+    @field_validator("ALEMBIC_DATABASE_URL", mode="before")
+    def validate_alembic_database_url(cls, value):
+        """
+        Ensure ALEMBIC_DATABASE_URL uses a sync driver (not asyncpg or other async drivers).
+        """
+        if value:
+            if value.startswith("postgresql+asyncpg://"):
+                raise ValueError(
+                    "ALEMBIC_DATABASE_URL must use a synchronous driver (e.g., 'postgresql://'), not 'postgresql+asyncpg://'. "
+                    f"You provided: {value}"
+                )
+            # Add more checks for other async drivers if needed
         return value
 
     model_config = ConfigDict(env_file=".env", case_sensitive=True)
