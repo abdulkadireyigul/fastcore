@@ -1,6 +1,6 @@
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.errors.exceptions import DBError, NotFoundError
@@ -53,6 +53,21 @@ class BaseRepository(Generic[ModelType]):
             return items
         except Exception as e:
             self.logger.error(f"Error in list: {e}")
+            raise DBError(message=str(e), details={"error": str(e)})
+
+    async def count(self, filters: Optional[Dict[str, Any]] = None) -> int:
+        """Return the total number of records, optionally filtered."""
+        try:
+            filters = filters or {}
+            stmt = select(func.count()).select_from(self.model)
+            if filters:
+                stmt = stmt.filter_by(**filters)
+            result = await self.session.execute(stmt)
+            total = result.scalar_one()
+            self.logger.debug(f"Counted {total} items of {self.model.__name__}")
+            return total
+        except Exception as e:
+            self.logger.error(f"Error in count: {e}")
             raise DBError(message=str(e), details={"error": str(e)})
 
     async def create(self, data: Dict[str, Any]) -> ModelType:

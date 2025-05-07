@@ -110,6 +110,46 @@ async def test_repository_list_db_error(dummy_session, dummy_model):
 
 
 @pytest.mark.asyncio
+async def test_count_no_filters(dummy_session, dummy_model):
+    """Test count returns the total number of records."""
+    session = dummy_session
+    session.execute = AsyncMock(
+        return_value=MagicMock(scalar_one=MagicMock(return_value=42))
+    )
+    repo = BaseRepository(dummy_model, session)
+    with patch("fastcore.db.repository.select", return_value=MagicMock()):
+        result = await repo.count()
+    assert result == 42
+    session.execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_count_with_filters(dummy_session, dummy_model):
+    """Test count returns the number of records matching filters."""
+    session = dummy_session
+    session.execute = AsyncMock(
+        return_value=MagicMock(scalar_one=MagicMock(return_value=5))
+    )
+    repo = BaseRepository(dummy_model, session)
+    with patch("fastcore.db.repository.select", return_value=MagicMock()):
+        result = await repo.count(filters={"is_active": True})
+    assert result == 5
+    session.execute.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_count_db_error(dummy_session, dummy_model):
+    """Test count raises DBError on DB exception."""
+    session = dummy_session
+    session.execute = AsyncMock(side_effect=Exception("db error"))
+    repo = BaseRepository(dummy_model, session)
+    with patch("fastcore.db.repository.select", return_value=MagicMock()):
+        with pytest.raises(DBError) as exc:
+            await repo.count()
+    assert "db error" in str(exc.value)
+
+
+@pytest.mark.asyncio
 async def test_repository_create_success(dummy_session, dummy_model):
     """Test create successfully adds a new model instance."""
     session = dummy_session
