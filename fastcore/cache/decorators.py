@@ -47,7 +47,18 @@ def cache(
             # Call the wrapped function and cache its result
             result = await func(*args, **kwargs)
             try:
-                await cache_instance.set(full_key, result, ttl=ttl)
+                # Serialize Pydantic models or lists of models
+                if hasattr(result, "model_dump"):
+                    serializable = result.model_dump()
+                elif (
+                    isinstance(result, list)
+                    and result
+                    and hasattr(result[0], "model_dump")
+                ):
+                    serializable = [item.model_dump() for item in result]
+                else:
+                    serializable = result
+                await cache_instance.set(full_key, serializable, ttl=ttl)
             except Exception as e:
                 cache_instance._logger.error(f"Cache set error: {e}") if hasattr(
                     cache_instance, "_logger"
