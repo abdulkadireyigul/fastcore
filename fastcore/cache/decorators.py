@@ -1,5 +1,6 @@
 import functools
 import hashlib
+import inspect
 import json
 from typing import Any, Callable, Optional
 
@@ -35,10 +36,17 @@ def cache(
             # Retrieve cache instance
             cache_instance = await get_cache()
 
+            sig = inspect.signature(func)
+            params = list(sig.parameters.values())
+            is_method = params and params[0].name in ("self", "cls")
+            used_args = args[1:] if is_method else args
+
             # Construct cache key based on function and arguments
             key_data = {
                 "func": f"{func.__module__}.{func.__name__}",
-                "args": tuple(str(a) for a in args),
+                # "args": tuple(str(a) for a in args),
+                # "args": tuple(str(a) for a in args[1:]),
+                "args": tuple(str(a) for a in used_args),
                 "kwargs": tuple(
                     (str(k), normalize(v)) for k, v in sorted(kwargs.items())
                 ),
@@ -48,11 +56,11 @@ def cache(
             full_key = f"{prefix or ''}{key_hash}"
 
             # Debug logging
-            if hasattr(cache_instance, "_logger"):
-                cache_instance._logger.debug(f"[cache] key_data: {key_data}")
-                cache_instance._logger.debug(f"[cache] key_str: {key_str}")
-                cache_instance._logger.debug(f"[cache] key_hash: {key_hash}")
-                cache_instance._logger.debug(f"[cache] full_key: {full_key}")
+            # if hasattr(cache_instance, "_logger"):
+            #     cache_instance._logger.debug(f"[cache] key_data: {key_data}")
+            #     cache_instance._logger.debug(f"[cache] key_str: {key_str}")
+            #     cache_instance._logger.debug(f"[cache] key_hash: {key_hash}")
+            #     cache_instance._logger.debug(f"[cache] full_key: {full_key}")
 
             # Attempt to get cached value
             try:
