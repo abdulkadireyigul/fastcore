@@ -2,7 +2,7 @@ import functools
 import hashlib
 import inspect
 import json
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional
 
 from fastcore.cache.manager import get_cache
 
@@ -71,6 +71,31 @@ def cache(
                 ) else None
                 cached = None
             if cached is not None:
+                # Automatically deserialize Pydantic models
+                model_type = None
+                try:
+                    # Check if the function has a return type annotation
+                    return_type = func.__annotations__.get("return")
+                    if return_type is not None:
+                        # List[Model] or Model
+                        origin = getattr(return_type, "__origin__", None)
+                        if origin in (list, List):
+                            model_type = return_type.__args__[0]
+                            if isinstance(cached, list) and hasattr(
+                                model_type, "model_validate"
+                            ):
+                                return [
+                                    model_type.model_validate(item)
+                                    if isinstance(item, dict)
+                                    else item
+                                    for item in cached
+                                ]
+                        elif hasattr(return_type, "model_validate"):
+                            model_type = return_type
+                            if isinstance(cached, dict):
+                                return model_type.model_validate(cached)
+                except Exception:
+                    pass
                 return cached
 
             # Call the wrapped function and cache its result
