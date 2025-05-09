@@ -17,6 +17,14 @@ def cache(
         prefix: Optional key prefix to namespace cache keys
     """
 
+    def normalize(obj):
+        if isinstance(obj, dict):
+            return tuple(sorted((str(k), normalize(v)) for k, v in obj.items()))
+        elif isinstance(obj, (list, tuple)):
+            return tuple(normalize(x) for x in obj)
+        else:
+            return str(obj)
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -27,7 +35,10 @@ def cache(
             key_data = {
                 "func": f"{func.__module__}.{func.__name__}",
                 "args": tuple(str(a) for a in args),
-                "kwargs": tuple((str(k), str(v)) for k, v in sorted(kwargs.items())),
+                "kwargs": tuple(
+                    (str(k), normalize(v)) for k, v in sorted(kwargs.items())
+                ),
+                # "kwargs": tuple((str(k), str(v)) for k, v in sorted(kwargs.items())),
                 # "args": args,
                 # "kwargs": kwargs,
                 # "kwargs": tuple(sorted(kwargs.items())),
