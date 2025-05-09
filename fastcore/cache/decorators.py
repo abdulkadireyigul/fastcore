@@ -27,7 +27,8 @@ def cache(
             key_data = {
                 "func": f"{func.__module__}.{func.__name__}",
                 "args": args,
-                "kwargs": kwargs,
+                # "kwargs": kwargs,
+                "kwargs": tuple(sorted(kwargs.items())),
             }
             key_str = json.dumps(key_data, default=str, sort_keys=True)
             key_hash = hashlib.sha256(key_str.encode()).hexdigest()
