@@ -48,14 +48,16 @@ def cache(
             result = await func(*args, **kwargs)
             try:
                 # Serialize Pydantic models or lists of models
-                if hasattr(result, "model_dump"):
-                    serializable = result.model_dump()
+                if hasattr(result, "model_dump_json"):
+                    serializable = json.loads(result.model_dump_json())
                 elif (
                     isinstance(result, list)
                     and result
-                    and hasattr(result[0], "model_dump")
+                    and hasattr(result[0], "model_dump_json")
                 ):
-                    serializable = [item.model_dump() for item in result]
+                    serializable = [
+                        json.loads(item.model_dump_json()) for item in result
+                    ]
                 else:
                     serializable = result
                 await cache_instance.set(full_key, serializable, ttl=ttl)
