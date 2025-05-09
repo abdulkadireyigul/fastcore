@@ -42,14 +42,17 @@ def cache(
                 "kwargs": tuple(
                     (str(k), normalize(v)) for k, v in sorted(kwargs.items())
                 ),
-                # "kwargs": tuple((str(k), str(v)) for k, v in sorted(kwargs.items())),
-                # "args": args,
-                # "kwargs": kwargs,
-                # "kwargs": tuple(sorted(kwargs.items())),
             }
             key_str = json.dumps(key_data, sort_keys=True)
             key_hash = hashlib.sha256(key_str.encode()).hexdigest()
             full_key = f"{prefix or ''}{key_hash}"
+
+            # Debug logging
+            if hasattr(cache_instance, "_logger"):
+                cache_instance._logger.debug(f"[cache] key_data: {key_data}")
+                cache_instance._logger.debug(f"[cache] key_str: {key_str}")
+                cache_instance._logger.debug(f"[cache] key_hash: {key_hash}")
+                cache_instance._logger.debug(f"[cache] full_key: {full_key}")
 
             # Attempt to get cached value
             try:
