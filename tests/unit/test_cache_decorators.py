@@ -100,12 +100,15 @@ class TestCacheDecorator:
             # Generate expected key manually
             key_data = {
                 "func": "test_cache_decorators.test_func",
-                "args": (1, 2),
-                "kwargs": {"c": 3},
+                # "args": (1, 2),
+                # "kwargs": {"c": 3},
+                "args": ("1", "2"),
+                "kwargs": (("c", "3"),),
             }
-            key_str = json.dumps(key_data, default=str, sort_keys=True)
+            # key_str = json.dumps(key_data, default=str, sort_keys=True)
+            key_str = json.dumps(key_data, sort_keys=True)
             key_hash = hashlib.sha256(key_str.encode()).hexdigest()
-
+            assert get_call_args[0].endswith(key_hash)
             # Key should be a hash
             assert len(get_call_args[0]) == 64
 

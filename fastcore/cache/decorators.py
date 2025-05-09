@@ -26,11 +26,13 @@ def cache(
             # Construct cache key based on function and arguments
             key_data = {
                 "func": f"{func.__module__}.{func.__name__}",
-                "args": args,
+                "args": tuple(str(a) for a in args),
+                "kwargs": tuple((str(k), str(v)) for k, v in sorted(kwargs.items())),
+                # "args": args,
                 # "kwargs": kwargs,
-                "kwargs": tuple(sorted(kwargs.items())),
+                # "kwargs": tuple(sorted(kwargs.items())),
             }
-            key_str = json.dumps(key_data, default=str, sort_keys=True)
+            key_str = json.dumps(key_data, sort_keys=True)
             key_hash = hashlib.sha256(key_str.encode()).hexdigest()
             full_key = f"{prefix or ''}{key_hash}"
 
