@@ -251,3 +251,73 @@ class TestCacheDecorator:
             # Cache should still be used, but will handle the error internally
             mock_cache.get.assert_awaited_once()
             mock_cache.set.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_cache_key_filters_dict_order(self, mock_cache):
+        """Key aynı dict farklı sıralamayla verilirse aynı olmalı."""
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
+            mock_cache.get.return_value = None
+
+            @cache()
+            async def test_func(filters=None, offset=0, limit=100):
+                return 42
+
+            await test_func(filters={"a": 1, "b": 2}, offset=0, limit=100)
+            key1 = mock_cache.get.call_args[0][0]
+            mock_cache.get.reset_mock()
+            await test_func(filters={"b": 2, "a": 1}, offset=0, limit=100)
+            key2 = mock_cache.get.call_args[0][0]
+            assert key1 == key2
+
+    @pytest.mark.asyncio
+    async def test_cache_key_filters_none_vs_empty(self, mock_cache):
+        """filters=None ve filters={{}} aynı key üretmeli."""
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
+            mock_cache.get.return_value = None
+
+            @cache()
+            async def test_func(filters=None, offset=0, limit=100):
+                return 42
+
+            await test_func(filters=None, offset=0, limit=100)
+            key1 = mock_cache.get.call_args[0][0]
+            mock_cache.get.reset_mock()
+            await test_func(filters={}, offset=0, limit=100)
+            key2 = mock_cache.get.call_args[0][0]
+            assert key1 == key2
+
+    @pytest.mark.asyncio
+    async def test_cache_key_primitive_type_consistency(self, mock_cache):
+        """offset/limit int ve str olarak verilirse aynı key üretmeli."""
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
+            mock_cache.get.return_value = None
+
+            @cache()
+            async def test_func(filters=None, offset=0, limit=100):
+                return 42
+
+            await test_func(filters={"a": 1}, offset=0, limit=100)
+            key1 = mock_cache.get.call_args[0][0]
+            mock_cache.get.reset_mock()
+            await test_func(filters={"a": 1}, offset="0", limit="100")
+            key2 = mock_cache.get.call_args[0][0]
+            assert key1 == key2
+
+    @pytest.mark.asyncio
+    async def test_cache_key_nested_dict_list(self, mock_cache):
+        """filters içinde nested dict/list olduğunda key tutarlılığı test edilmeli."""
+        with patch("fastcore.cache.decorators.get_cache", return_value=mock_cache):
+            mock_cache.get.return_value = None
+
+            @cache()
+            async def test_func(filters=None, offset=0, limit=100):
+                return 42
+
+            filters1 = {"a": [1, 2, {"b": 3}], "c": {"d": 4}}
+            filters2 = {"c": {"d": 4}, "a": [1, 2, {"b": 3}]}
+            await test_func(filters=filters1, offset=0, limit=100)
+            key1 = mock_cache.get.call_args[0][0]
+            mock_cache.get.reset_mock()
+            await test_func(filters=filters2, offset=0, limit=100)
+            key2 = mock_cache.get.call_args[0][0]
+            assert key1 == key2

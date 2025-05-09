@@ -18,7 +18,11 @@ def cache(
     """
 
     def normalize(obj):
+        if obj is None:
+            return ""
         if isinstance(obj, dict):
+            if not obj:
+                return ""
             return tuple(sorted((str(k), normalize(v)) for k, v in obj.items()))
         elif isinstance(obj, (list, tuple)):
             return tuple(normalize(x) for x in obj)
