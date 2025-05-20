@@ -1,6 +1,6 @@
 from typing import AsyncGenerator, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import fastcore.db.engine as db_engine
@@ -55,7 +55,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         try:
             yield session
             await session.commit()
+        except HTTPException as e:
+            await session.rollback()
+            log.error(f"Database session error (HTTPException): {e!r}")
+            raise
         except Exception as e:
             await session.rollback()
-            log.error(f"Database session error: {e}")
+            log.error(f"Database session error: {e!r}")
             raise DBError(message=str(e), details={"error": str(e)})
