@@ -5,14 +5,14 @@ from typing import Any, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.config import get_settings
-from fastcore.errors.exceptions import DBError
-from fastcore.logging.manager import ensure_logger
-from fastcore.schemas.response.token import TokenResponse
-from fastcore.security.exceptions import (
+from fastcore.errors.exceptions import (
+    DBError,
     ExpiredTokenError,
     InvalidTokenError,
     RevokedTokenError,
 )
+from fastcore.logging.manager import ensure_logger
+from fastcore.schemas.response.token import TokenResponse
 from fastcore.security.tokens.models import Token, TokenType
 from fastcore.security.tokens.repository import TokenRepository
 
@@ -134,8 +134,8 @@ async def create_token_pair(
 async def validate_token(
     token: str, session: AsyncSession, token_type: Optional[TokenType] = None
 ) -> Dict[str, Any]:
-    payload = await validate_jwt_stateless(token, token_type)
     try:
+        payload = await validate_jwt_stateless(token, token_type)
         token_id = payload["jti"]
         repo = TokenRepository(Token, session=session)
         token_record = await repo.get_by_token_id(token_id)

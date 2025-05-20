@@ -3,8 +3,8 @@ from typing import Any, Dict, Optional
 import jwt  # type: ignore
 
 from fastcore.config import get_settings
+from fastcore.errors.exceptions import ExpiredTokenError, InvalidTokenError
 from fastcore.logging.manager import ensure_logger
-from fastcore.security.exceptions import ExpiredTokenError, InvalidTokenError
 from fastcore.security.tokens.models import TokenType
 
 logger = ensure_logger(None, __name__)
@@ -79,9 +79,9 @@ async def validate_jwt_stateless(
                 details={"error": "Missing sub claim"},
             )
         return payload
-    except jwt.ExpiredSignatureError:
+    except jwt.ExpiredSignatureError as e:
         logger.warning("Expired token used")
-        raise ExpiredTokenError()
+        raise ExpiredTokenError(message="Token has expired", details={"error": str(e)})
     # except jwt.InvalidAudienceError as e:
     #     logger.warning(f"Token with invalid audience: {e}")
     #     raise InvalidTokenError(

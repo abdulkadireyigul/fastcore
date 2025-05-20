@@ -14,12 +14,13 @@ from fastcore.security.dependencies import (
     get_token_data,
     refresh_token,
 )
-from fastcore.security.exceptions import (
-    ExpiredTokenError,
-    InvalidCredentialsError,
-    InvalidTokenError,
-    RevokedTokenError,
-)
+
+# from fastcore.security.exceptions import (
+#     ExpiredTokenError,
+#     InvalidCredentialsError,
+#     InvalidTokenError,
+#     RevokedTokenError,
+# )
 from fastcore.security.manager import get_security_status, setup_security
 from fastcore.security.password import get_password_hash, verify_password
 from fastcore.security.tokens.models import TokenType
@@ -66,11 +67,11 @@ __all__ = [
     "UserAuthentication",
     "BaseUserAuthentication",
     # Exceptions
-    "InvalidTokenError",
-    "ExpiredTokenError",
-    "RevokedTokenError",
-    "InvalidCredentialsError",
-    "AuthenticationError",
+    # "InvalidTokenError",
+    # "ExpiredTokenError",
+    # "RevokedTokenError",
+    # "InvalidCredentialsError",
+    # "AuthenticationError",
     # Token repository
     "TokenRepository",
     # Token utils

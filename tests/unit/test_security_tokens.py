@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import jwt
 import pytest
 
-from fastcore.errors.exceptions import DBError
-from fastcore.security.exceptions import (
+from fastcore.errors.exceptions import (
+    DBError,
     ExpiredTokenError,
     InvalidTokenError,
     RevokedTokenError,

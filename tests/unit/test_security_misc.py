@@ -12,13 +12,13 @@ from sqlalchemy import Column, Integer, String
 from sqlalchemy.orm import relationship
 
 from fastcore.db.base import BaseModel
-from fastcore.security import dependencies
-from fastcore.security.exceptions import (
+from fastcore.errors.exceptions import (
     ExpiredTokenError,
     InvalidCredentialsError,
     InvalidTokenError,
     RevokedTokenError,
 )
+from fastcore.security import dependencies
 
 
 class User(BaseModel):

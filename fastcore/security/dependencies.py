@@ -12,7 +12,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.db import get_db
-from fastcore.security.exceptions import (
+from fastcore.errors.exceptions import (
     ExpiredTokenError,
     InvalidTokenError,
     RevokedTokenError,
