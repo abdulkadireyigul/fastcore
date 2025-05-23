@@ -127,3 +127,14 @@ class StreamResponse(BaseResponse[AsyncIterator[T], ResponseMetadata]):
     """Custom response for streaming data."""
     pass
 ```
+
+## Notes
+
+- The `ErrorResponse` schema includes an `errors` field, which is a list of `ErrorInfo` objects. This allows for multiple error details to be returned in a single response.
+
+## Limitations
+
+- Envelope structure is fixed; customization requires subclassing or code changes
+- Only basic metadata (timestamp, version, pagination) is included by default
+- No built-in support for localization or advanced metadata
+- No automatic OpenAPI customization beyond FastAPI defaults

@@ -3,6 +3,11 @@ List response schema for collections of objects.
 
 This module contains schemas used when returning lists/collections
 of items from API endpoints.
+
+Limitations:
+- Envelope structure is fixed; customization requires subclassing or code changes
+- Only basic metadata (timestamp, version, pagination) is included by default
+- No built-in support for localization or advanced metadata
 """
 
 from typing import Generic, List, Optional, TypeVar
@@ -18,6 +23,13 @@ T = TypeVar("T")
 class ListMetadata(BaseMetadata):
     """
     Metadata specific to list responses.
+
+    Features:
+    - Includes total, page, page_size, has_next, has_previous
+
+    Limitations:
+    - Only basic metadata (timestamp, version, pagination) is included by default
+    - No built-in support for advanced metadata or localization
 
     Attributes:
         total: Total number of items
@@ -42,25 +54,20 @@ class ListResponse(BaseResponse[List[T], ListMetadata], Generic[T]):
     """
     Schema for list/collection API responses.
 
-    Example:
-        Response for getting a list of users:
-        {
-            "success": true,
-            "data": [
-                {"id": 1, "name": "John"},
-                {"id": 2, "name": "Jane"}
-            ],
-            "metadata": {
-                "timestamp": "2025-04-15T10:30:00",
-                "version": "1.0",
-                "total": 50,
-                "page": 1,
-                "page_size": 10,
-                "has_next": true,
-                "has_previous": false
-            },
-            "message": "Users retrieved successfully"
-        }
+    Features:
+    - Standardized envelope for list/collection responses
+    - Includes list data and pagination metadata
+
+    Limitations:
+    - Envelope structure is fixed; customization requires subclassing or code changes
+    - Only basic metadata (timestamp, version, pagination) is included by default
+    - No built-in support for localization or advanced metadata
+
+    Attributes:
+        data: The list of response items
+        metadata: Pagination and response metadata
+        success: Whether the request was successful
+        message: Optional message providing additional context
     """
 
     data: List[T] = Field(default_factory=list, description="List of items")

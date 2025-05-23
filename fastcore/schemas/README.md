@@ -162,3 +162,14 @@ from fastcore.factory import configure_app
 app = FastAPI()
 configure_app(app)  # Sets up error handlers that use schemas.ErrorResponse format
 ```
+
+## Limitations
+
+- Envelope structure is fixed; customization requires subclassing or code changes
+- Only basic metadata (timestamp, version, pagination) is included by default
+- No built-in support for localization or advanced metadata
+- No automatic OpenAPI customization beyond FastAPI defaults
+
+## See Also
+
+For detailed documentation, examples, and implementation guidance on response schemas, see [`schemas/response/README.md`](./response/README.md).

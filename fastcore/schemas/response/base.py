@@ -3,6 +3,11 @@ Base response schemas.
 
 This module provides the base response schema that all other response
 schemas will inherit from.
+
+Limitations:
+- Envelope structure is fixed; customization requires subclassing or code changes
+- Only basic metadata (timestamp, version) is included by default
+- No built-in support for localization or advanced metadata
 """
 
 from typing import Generic, Optional, TypeVar
@@ -19,11 +24,14 @@ class BaseResponse(BaseModel, Generic[T, M]):
     """
     Base schema for all API responses.
 
-    Attributes:
-        success: Whether the request was successful
-        data: The response payload of type T
-        metadata: Response metadata of type M
-        message: Optional message providing additional context
+    Features:
+    - Standardized envelope with success, data, metadata, and message fields
+    - Type-safe and reusable for custom responses
+
+    Limitations:
+    - Envelope structure is fixed; customization requires subclassing or code changes
+    - Only basic metadata (timestamp, version) is included by default
+    - No built-in support for localization or advanced metadata
     """
 
     success: bool = Field(

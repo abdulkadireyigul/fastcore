@@ -1,5 +1,11 @@
 """
 Base metadata schemas for API responses.
+
+Provides timestamp and version metadata for API responses.
+
+Limitations:
+- Only basic metadata (timestamp, version) is included by default
+- No built-in support for advanced metadata or localization
 """
 
 from datetime import datetime, timezone
@@ -11,9 +17,12 @@ class BaseMetadata(BaseModel):
     """
     Base metadata model defining common fields.
 
-    Attributes:
-        timestamp: ISO formatted UTC timestamp
-        version: API version string
+    Features:
+    - Includes timestamp (UTC) and API version
+
+    Limitations:
+    - Only basic metadata (timestamp, version) is included by default
+    - No built-in support for advanced metadata or localization
     """
 
     timestamp: datetime = Field(
@@ -25,6 +34,12 @@ class BaseMetadata(BaseModel):
 
 
 class ResponseMetadata(BaseMetadata):
-    """Standard response metadata that can be extended for specific needs."""
+    """
+    Standard response metadata that can be extended for specific needs.
+
+    Limitations:
+    - Only basic metadata (timestamp, version) is included by default
+    - No built-in support for advanced metadata or localization
+    """
 
     pass

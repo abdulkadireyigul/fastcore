@@ -2,6 +2,11 @@
 Error response schemas.
 
 This module contains schemas used for error responses in the API.
+
+Limitations:
+- Envelope structure is fixed; customization requires subclassing or code changes
+- Only basic metadata (timestamp, version) is included by default
+- No built-in support for localization or advanced metadata
 """
 
 from typing import Any, Dict, List, Optional
@@ -15,6 +20,13 @@ from fastcore.schemas.response.base import BaseResponse
 class ErrorInfo(BaseModel):
     """
     Detailed error information.
+
+    Features:
+    - Includes code, message, field, and details for error reporting
+
+    Limitations:
+    - Only basic error details are included by default
+    - No built-in support for localization or advanced metadata
 
     Attributes:
         code: Error code identifier
@@ -37,25 +49,20 @@ class ErrorResponse(BaseResponse[None, ResponseMetadata]):
     """
     Schema for error responses.
 
-    Example:
-        Response for a validation error:
-        {
-            "success": false,
-            "data": null,
-            "metadata": {
-                "timestamp": "2025-04-15T10:30:00",
-                "version": "1.0"
-            },
-            "message": "Validation error",
-            "errors": [
-                {
-                    "code": "INVALID_INPUT",
-                    "message": "Invalid email format",
-                    "field": "email",
-                    "details": {"value": "invalid-email"}
-                }
-            ]
-        }
+    Features:
+    - Standardized envelope for error responses
+    - Includes errors list and standard metadata
+
+    Limitations:
+    - Envelope structure is fixed; customization requires subclassing or code changes
+    - Only basic metadata (timestamp, version) is included by default
+    - No built-in support for localization or advanced metadata
+
+    Attributes:
+        errors: List of error details (ErrorInfo)
+        metadata: Standard response metadata
+        success: Always false for error responses
+        message: Error message
     """
 
     success: bool = Field(default=False, description="Always false for error responses")

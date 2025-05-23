@@ -3,6 +3,11 @@ Data response schema for single-object responses.
 
 This module contains the schema used when returning a single item
 from an API endpoint.
+
+Limitations:
+- Envelope structure is fixed; customization requires subclassing or code changes
+- Only basic metadata (timestamp, version) is included by default
+- No built-in support for localization or advanced metadata
 """
 
 from typing import Generic, TypeVar
@@ -19,17 +24,20 @@ class DataResponse(BaseResponse[T, ResponseMetadata], Generic[T]):
     """
     Schema for single-object API responses.
 
-    Example:
-        Response for getting a single user:
-        {
-            "success": true,
-            "data": {"id": 1, "name": "John"},
-            "metadata": {
-                "timestamp": "2025-04-15T10:30:00",
-                "version": "1.0"
-            },
-            "message": "User retrieved successfully"
-        }
+    Features:
+    - Standardized envelope for single-object responses
+    - Includes required data and standard metadata
+
+    Limitations:
+    - Envelope structure is fixed; customization requires subclassing or code changes
+    - Only basic metadata (timestamp, version) is included by default
+    - No built-in support for localization or advanced metadata
+
+    Attributes:
+        data: The response payload (required)
+        metadata: Standard response metadata
+        success: Whether the request was successful
+        message: Optional message providing additional context
     """
 
     data: T = Field(..., description="Response payload (required)")  # required
