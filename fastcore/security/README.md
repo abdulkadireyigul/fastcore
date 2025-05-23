@@ -54,6 +54,125 @@ async def get_me(token_data=Depends(get_token_data)):
     return token_data
 ```
 
+## User Authentication Example
+
+Implement a custom user authentication class using `BaseUserAuthentication`:
+
+```python
+from fastcore.db import BaseRepository
+from fastcore.security.users import BaseUserAuthentication
+from fastcore.security.password import verify_password
+from sqlalchemy.ext.asyncio import AsyncSession
+from .models import User
+
+class UserRepository(BaseRepository[User]):
+    def __init__(self, session):
+        """
+        Initialize the UserRepository with a database session.
+
+        Args:
+            session: The database session to use for operations.
+        """
+        super().__init__(User, session)
+    # Implement other methods as needed
+    pass
+
+class AuthService(BaseUserAuthentication[User]):
+    def __init__(self, session):
+        self.repo = UserRepository(session)
+
+    # --- For fastcore security module (Must to use it) ---
+    async def authenticate(self, credentials) -> User | None:
+        """
+        Authenticate a user with username and password.
+
+        Args:
+            credentials (dict): Dictionary containing 'username' and 'password'.
+
+        Returns:
+            User | None: The authenticated user object if successful, None otherwise.
+        """
+        user = await self.repo.get_by_username(credentials["username"])
+        if user and verify_password(credentials["password"], user.hashed_password):
+            return user
+        return None
+
+    async def get_user_by_id(self, user_id) -> User:
+        """
+        Get a user by their ID.
+
+        Args:
+            user_id (int): The user's unique identifier.
+
+        Returns:
+            User: The user object.
+        """
+        return await self.repo.get_by_id(user_id)
+
+    def get_user_id(self, user) -> int:
+        """
+        Extract the user ID from a user object.
+
+        Args:
+            user (User): The user object.
+
+        Returns:
+            int: The user's ID.
+        """
+        return user.id
+```
+
+> **Note:** You must provide a valid database session to your authentication handler (see above).
+
+## Using get_current_user_dependency
+
+Use your authentication handler with FastAPI dependencies. The handler must be properly initialized before use:
+
+```python
+from fastapi import Depends, APIRouter
+from fastcore.db.manager import get_db
+from fastcore.security.dependencies import get_current_user_dependency
+from .service import AuthService
+
+router = APIRouter()
+
+def get_auth_service(session=Depends(get_db)):
+    """
+    Dependency to provide an AuthService instance with a database session.
+
+    Args:
+        session: The database session dependency.
+
+    Returns:
+        AuthService: An instance of the AuthService class.
+    """
+    return AuthService(session)
+
+get_current_user = get_current_user_dependency(get_auth_service)
+
+@router.get("/profile")
+async def profile(user=Depends(get_current_user)):
+    return {"user_id": user.id, "username": user.username}
+```
+
+## Refresh Token and Logout Usage
+
+```python
+from fastapi import Depends, APIRouter
+from fastcore.security.dependencies import get_refresh_token_data, refresh_token, logout_user
+
+router = APIRouter()
+
+@router.post("/refresh")
+async def refresh_access_token(token_data=Depends(get_refresh_token_data)):
+    # You can also use refresh_token dependency directly
+    ...
+
+@router.post("/logout")
+async def logout(result=Depends(logout_user)):
+    return result
+```
+
 ## Limitations
 
 - Only password-based JWT authentication is included by default
