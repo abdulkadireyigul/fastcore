@@ -149,7 +149,7 @@ http_requests_total{method="POST",endpoint="/api/users",status_code="201"} 5
 
 ### Correlation/Request ID
 
-The monitoring module adds a unique request/correlation ID to each request. These IDs can be found in logs and response headers. Full distributed tracing (e.g., OpenTelemetry, Jaeger, Zipkin) is not supported.
+Note: The monitoring module does not add a request/correlation ID by default. If you need request IDs for log correlation or response headers, you can add this via custom middleware or use a third-party package. Full distributed tracing (e.g., OpenTelemetry, Jaeger, Zipkin) is not supported.
 
 ## Integration with External Tools
 
@@ -158,3 +158,11 @@ The monitoring module is designed for integration with popular monitoring tools:
 - **Prometheus**: Metrics are exposed in Prometheus format
 - **Grafana**: Create dashboards using the collected metrics
 - **ELK/Datadog/etc.**: Log correlation with request IDs
+
+## Limitations
+
+- Only Prometheus metrics and basic health checks are included by default
+- No full distributed tracing (e.g., OpenTelemetry, Jaeger, Zipkin)
+- No custom metric registration API (only built-in HTTP metrics)
+- No built-in alerting or notification features
+- Metrics endpoint is public unless protected by other means

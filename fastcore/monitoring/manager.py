@@ -26,6 +26,17 @@ def setup_monitoring(
     This function sets up health checks, metrics collection, and instrumentation
     for monitoring a FastAPI application in production environments.
 
+    Features:
+    - Health check endpoint (configurable)
+    - Prometheus metrics endpoint (configurable)
+
+    Limitations:
+    - Only Prometheus metrics and basic health checks are included by default
+    - No full distributed tracing (e.g., OpenTelemetry, Jaeger, Zipkin)
+    - No custom metric registration API (only built-in HTTP metrics)
+    - No built-in alerting or notification features
+    - Metrics endpoint is public unless protected by other means
+
     Args:
         app: FastAPI application instance
         settings: Application settings

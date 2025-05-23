@@ -3,6 +3,11 @@ Health check functionality for FastAPI applications.
 
 This module provides endpoints and utilities for health checks, 
 allowing monitoring systems to verify application status.
+
+Limitations:
+- Only basic health checks are included by default
+- No full distributed tracing (e.g., OpenTelemetry, Jaeger, Zipkin)
+- No built-in alerting or notification features
 """
 
 from enum import Enum

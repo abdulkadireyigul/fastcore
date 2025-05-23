@@ -3,6 +3,11 @@ Metrics collection and exposure for FastAPI applications.
 
 This module provides support for collecting and exposing application metrics
 using Prometheus, allowing monitoring systems to track performance and usage.
+
+Limitations:
+- Only Prometheus metrics are included by default (no custom metric registration API)
+- No built-in alerting or notification features
+- Metrics endpoint is public unless protected by other means
 """
 
 import time
