@@ -12,23 +12,41 @@ Usage:
 
 Example environment variables (to be placed in your consuming project's .env or environment):
 
-APP_NAME=FastCore
-DEBUG=True
-DATABASE_URL=sqlite:///:memory:
-JWT_SECRET_KEY=changeme
-CACHE_URL=redis://localhost:6379/0
+# Application
+APP_NAME="FastCore"
+APP_ENV="development"  # Options: development, testing, production
+VERSION="1.0.0"
+DEBUG=true
+
+# Cache configuration
+CACHE_URL="redis://localhost:6379/0"
 CACHE_DEFAULT_TTL=300
-CACHE_KEY_PREFIX=fastcore:
-APP_ENV=development
-JWT_AUDIENCE=fastcore
-JWT_ISSUER=fastcore
-JWT_ALLOWED_AUDIENCES=fastcore
-HEALTH_PATH=/health
-HEALTH_INCLUDE_DETAILS=True
-METRICS_PATH=/metrics
-METRICS_EXCLUDE_PATHS=/metrics,/health
-RATE_LIMITING_BACKEND=memory
-RATE_LIMITING_OPTIONS={"max_requests":60,"window_seconds":60}
+CACHE_KEY_PREFIX="fastcore:"
+
+# Database configuration
+DATABASE_URL="postgresql+asyncpg://<username>:<password>@<host>:<port>/<database_name>"
+ALEMBIC_DATABASE_URL="postgresql://<username>:<password>@<host>:<port>/<database_name>"
+DB_ECHO=false
+DB_POOL_SIZE=5
+
+# Security configuration
+JWT_SECRET_KEY="your-secret-key-at-least-32-characters-long"
+JWT_ALGORITHM="HS256"
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
+JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_AUDIENCE="fastcore"
+JWT_ISSUER="fastcore"
+
+# Middleware configuration
+MIDDLEWARE_CORS_OPTIONS='{"allow_origins":["http://localhost:3000"],"allow_credentials":true,"allow_methods":["*"],"allow_headers":["*"]}'
+RATE_LIMITING_OPTIONS='{"max_requests":60,"window_seconds":60}'
+RATE_LIMITING_BACKEND="redis"
+
+# Monitoring configuration
+HEALTH_PATH="/health"
+HEALTH_INCLUDE_DETAILS=true
+METRICS_PATH="/metrics"
+METRICS_EXCLUDE_PATHS='["/metrics", "/health"]'
 
 For a full example, see the env.example file in your main FastAPI project root.
 """
