@@ -15,6 +15,9 @@ cache: Optional[BaseCache] = None
 async def get_cache() -> Optional[BaseCache]:
     """
     FastAPI dependency for retrieving the cache instance.
+
+    Only Redis backend is supported. Only async cache operations are available.
+    Raises RuntimeError if cache is not initialized (e.g., Redis unavailable).
     """
     manager_mod = sys.modules.get("fastcore.cache.manager")
     cache_instance = getattr(manager_mod, "cache", None)
@@ -32,9 +35,14 @@ def setup_cache(
     """
     Configure cache lifecycle for FastAPI application.
 
-    - On startup: initialize RedisCache
+    - On startup: initialize RedisCache (async only)
     - On shutdown: close Redis connection
     - Provides get_cache dependency
+
+    Limitations:
+    - Only Redis backend is supported (no in-memory fallback)
+    - Only async cache operations are available
+    - No fallback if Redis is unavailable
     """
     log = ensure_logger(logger, __name__, settings)
     url = settings.CACHE_URL

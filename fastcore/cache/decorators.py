@@ -13,6 +13,9 @@ def cache(
     """
     Decorator for caching async function results.
 
+    Only async functions are supported. Only Redis backend is implemented.
+    No fallback if Redis is unavailable.
+
     Args:
         ttl: Optional time-to-live for this cache entry (seconds)
         prefix: Optional key prefix to namespace cache keys

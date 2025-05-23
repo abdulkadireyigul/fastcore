@@ -81,6 +81,14 @@ async def fetch_user(user_id: str) -> dict:
 
 The decorator will generate a key based on function name and arguments, retrieve cached results, or store new ones with the specified TTL.
 
+## Limitations
+
+- Only Redis backend is implemented (no in-memory or other backends)
+- Only async functions are supported (no sync cache/decorator)
+- No fallback if Redis is unavailable
+- No advanced Redis features (pub/sub, streams, etc.)
+- No distributed locking or rate limiting at the cache layer
+
 ## Error Handling
 
 Cache-related errors are logged using the global logger and will raise exceptions if Redis is unreachable. Handle exceptions as needed in your application.
