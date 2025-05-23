@@ -18,8 +18,12 @@ def setup_db(
     """
     Configure database lifecycle for FastAPI application.
 
-    - On startup: initialize AsyncEngine and sessionmaker
+    - On startup: initialize AsyncEngine and sessionmaker (async only)
     - On shutdown: dispose engine
+
+    Limitations:
+    - Only async SQLAlchemy is supported (no sync engine/session)
+    - No migration helpers (Alembic integration not included)
     """
     log = ensure_logger(logger, __name__, settings)
 
@@ -38,6 +42,8 @@ def setup_db(
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     FastAPI dependency that provides a database session per request.
+
+    Only async SQLAlchemy is supported. No sync session support.
     """
     import sys
 

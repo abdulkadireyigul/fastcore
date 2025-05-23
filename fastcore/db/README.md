@@ -28,7 +28,7 @@ from fastcore.config import BaseAppSettings
 
 class AppSettings(BaseAppSettings):
     # Database settings
-    DB_URL: str = "postgresql+asyncpg://user:password@localhost/dbname"
+    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/dbname"
     DB_ECHO: bool = False  # Set to True for SQL logging
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 10
@@ -36,7 +36,7 @@ class AppSettings(BaseAppSettings):
 ```
 
 Common environment variables:
-- `DB_URL`: Database connection URL (SQLAlchemy format)
+- `DATABASE_URL`: Database connection URL (SQLAlchemy format)
 - `DB_ECHO`: Enable SQL query logging
 - `DB_POOL_SIZE`: Connection pool size
 - `DB_MAX_OVERFLOW`: Maximum overflow connections
@@ -159,3 +159,10 @@ from fastcore.factory import configure_app
 app = FastAPI()
 configure_app(app)  # Sets up database based on app settings
 ```
+
+## Limitations
+
+- Only async SQLAlchemy is supported (no sync engine/session)
+- No migration helpers (Alembic integration not included)
+- No automatic model discovery/registration
+- No advanced pool management or multi-DB support

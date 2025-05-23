@@ -11,7 +11,9 @@ ModelType = TypeVar("ModelType")
 
 class BaseRepository(Generic[ModelType]):
     """
-    Generic repository providing basic CRUD operations for SQLAlchemy models.
+    Generic repository providing basic async CRUD operations for SQLAlchemy models.
+
+    Only async SQLAlchemy is supported. No sync support or advanced query helpers.
     """
 
     def __init__(self, model: Type[ModelType], session: AsyncSession) -> None:
