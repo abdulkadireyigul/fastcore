@@ -10,9 +10,9 @@ Core utilities and modules for building robust FastAPI applications with minimal
 - **Error Handling**: Consistent exceptions and handlers (`fastcore.errors`)
 - **Caching**: Redis-based async cache with decorator support (`fastcore.cache`)
 - **Database**: Async SQLAlchemy integration and repository pattern (`fastcore.db`)
-- **Security**: JWT authentication, password hashing, and role-based access (`fastcore.security`)
-- **Middleware**: CORS, rate limiting, and request timing (`fastcore.middleware`)
-- **Monitoring**: Health checks, Prometheus metrics, and request IDs (`fastcore.monitoring`)
+- **Security**: JWT authentication, password hashing, and user authentication interfaces (`fastcore.security`)
+- **Middleware**: CORS and rate limiting (no request timing middleware) (`fastcore.middleware`)
+- **Monitoring**: Health checks and Prometheus metrics (no request ID middleware by default) (`fastcore.monitoring`)
 - **Factory**: Single-entrypoint app configuration (`fastcore.factory`)
 
 ## Installation
@@ -74,18 +74,27 @@ poetry run pytest --cov=fastcore --cov-report=term-missing
 
 ## Module Documentation
 
-Each submodule includes a detailed README in its folder:
+Each submodule includes a detailed README in its folder. See these for features, limitations, and usage examples:
 
-- `fastcore/config/README.md`
-- `fastcore/logging/README.md`
-- `fastcore/schemas/README.md`
-- `fastcore/errors/README.md`
-- `fastcore/cache/README.md`
-- `fastcore/db/README.md`
-- `fastcore/security/README.md`
-- `fastcore/middleware/README.md`
-- `fastcore/monitoring/README.md`
-- `fastcore/factory/README.md`
+- `fastcore/config/README.md` — Settings and environment management
+- `fastcore/logging/README.md` — Logging setup and customization
+- `fastcore/schemas/README.md` — API response and metadata schemas
+- `fastcore/errors/README.md` — Exception types and error handling
+- `fastcore/cache/README.md` — Async cache and decorators
+- `fastcore/db/README.md` — Database integration and repository pattern
+- `fastcore/security/README.md` — JWT, password, and user authentication
+- `fastcore/middleware/README.md` — CORS and rate limiting middleware
+- `fastcore/monitoring/README.md` — Health checks and metrics
+- `fastcore/factory/README.md` — Application factory and setup
+
+## Limitations
+
+- Only password-based JWT authentication is included by default (no OAuth2/social login/multi-factor/RBAC)
+- No request timing or request ID middleware by default
+- Envelope structure for API responses is fixed; customization requires subclassing
+- Only basic metadata (timestamp, version, pagination) is included by default
+- No built-in support for localization or advanced OpenAPI customization
+- No dynamic reconfiguration or hot-reloading of modules at runtime
 
 ## Versioning
 
