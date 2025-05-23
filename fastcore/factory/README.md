@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastcore.factory import configure_app
 
 app = FastAPI()
-# Automatically sets up config, logging, errors, cache, and database
+# Automatically sets up config, logging, errors, cache, database, security, middleware, and monitoring
 configure_app(app)
 ```
 
@@ -37,6 +37,8 @@ app = FastAPI()
 configure_app(app, settings=CustomSettings())
 ```
 
+## Modules Included
+
 The factory module ties together:
 
 - **Configuration** (`fastcore.config`)
@@ -44,6 +46,9 @@ The factory module ties together:
 - **Error handling** (`fastcore.errors`)
 - **Cache** (`fastcore.cache`)
 - **Database** (`fastcore.db`)
+- **Security** (`fastcore.security`)
+- **Middleware** (`fastcore.middleware`)
+- **Monitoring** (`fastcore.monitoring`)
 
 ## Extension
 
@@ -56,6 +61,9 @@ from fastcore.logging import get_logger
 from fastcore.errors import setup_errors
 from fastcore.cache import setup_cache
 from fastcore.db import setup_db
+from fastcore.security import setup_security
+from fastcore.middleware import setup_middlewares
+from fastcore.monitoring import setup_monitoring
 
 app = FastAPI()
 app_settings = settings
@@ -63,4 +71,14 @@ logger = get_logger(__name__, app_settings)
 setup_errors(app, app_settings, logger)
 setup_cache(app, app_settings, logger)
 setup_db(app, app_settings, logger)
+setup_security(app, app_settings, logger)
+setup_middlewares(app, app_settings, logger)
+setup_monitoring(app, app_settings, logger)
 ```
+
+## Limitations
+
+- Only full setup is supported by default; partial setup requires manual calls to individual setup functions
+- No hooks for custom setup steps or post-configuration logic
+- Designed for a single FastAPI app instance at a time
+- No support for dynamic reconfiguration or hot-reloading of modules at runtime
