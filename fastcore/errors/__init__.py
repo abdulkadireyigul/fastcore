@@ -3,14 +3,24 @@ Error handling module for FastAPI applications.
 
 This module provides standardized error handling including custom exceptions,
 error responses, and exception handlers.
+
+Limitations:
+- Error response structure is fixed; customization requires code changes.
+- No built-in support for localization or multiple languages.
+- Only HTTP-style errors are supported (exceptions must inherit from AppError or be handled by FastAPI).
 """
 
 from fastcore.errors.exceptions import (
     AppError,
     BadRequestError,
     ConflictError,
+    DBError,
+    ExpiredTokenError,
     ForbiddenError,
+    InvalidCredentialsError,
+    InvalidTokenError,
     NotFoundError,
+    RevokedTokenError,
     UnauthorizedError,
     ValidationError,
 )
@@ -30,4 +40,9 @@ __all__ = [
     "ForbiddenError",
     "ConflictError",
     "BadRequestError",
+    "DBError",
+    "InvalidTokenError",
+    "ExpiredTokenError",
+    "RevokedTokenError",
+    "InvalidCredentialsError",
 ]

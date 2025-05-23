@@ -25,6 +25,10 @@ def setup_errors(
     This function sets up standardized error handling by registering exception handlers
     that convert exceptions into consistent API responses.
 
+    Limitations:
+    - Only HTTP-style errors are supported (exceptions must inherit from AppError or be handled by FastAPI)
+    - Error response structure is fixed; customization requires code changes
+
     Args:
         app: FastAPI application instance
         settings: Optional application settings

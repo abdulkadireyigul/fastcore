@@ -3,6 +3,10 @@ Exception handlers for FastAPI applications.
 
 This module provides exception handlers that convert application exceptions
 into standardized API responses using the schemas module.
+
+Limitations:
+- Only HTTP-style errors are supported (exceptions must inherit from AppError or be handled by FastAPI)
+- Error response structure is fixed; customization requires code changes
 """
 
 import traceback
@@ -29,6 +33,8 @@ def create_error_response(
 ) -> ErrorResponse:
     """
     Create a standardized error response.
+
+    The response structure is fixed; customization requires code changes.
 
     Args:
         status_code: HTTP status code

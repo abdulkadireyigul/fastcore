@@ -4,6 +4,10 @@ Base exception classes for FastAPI applications.
 This module provides a standardized exception hierarchy that can be 
 used throughout applications. These exceptions are designed to be 
 converted into appropriate HTTP responses.
+
+Limitations:
+- Only HTTP-style errors are supported (exceptions must inherit from AppError or be handled by FastAPI)
+- Error response structure is fixed; customization requires code changes
 """
 
 from http import HTTPStatus
@@ -15,6 +19,7 @@ class AppError(Exception):
     Base exception for all application errors.
 
     All custom exceptions should inherit from this class.
+    Only HTTP-style errors are supported. Error response structure is fixed.
 
     Attributes:
         message: Human-readable error message

@@ -103,12 +103,20 @@ All errors follow this standard JSON format:
 
 ```json
 {
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Item with ID 123 not found",
-    "details": {
-      "item_id": "123"
+  "success": false,
+  "message": "Item with ID 123 not found",
+  "errors": [
+    {
+      "code": "NOT_FOUND",
+      "message": "Item with ID 123 not found",
+      "details": {
+        "item_id": "123"
+      }
     }
+  ],
+  "metadata": {
+    "timestamp": "2025-05-23T12:00:00Z",
+    "version": "1.0"
   }
 }
 ```
@@ -116,16 +124,23 @@ All errors follow this standard JSON format:
 ## Built-in Exception Types
 
 - `AppError`: Base exception for all application errors
-- `ValidationError`: Input validation errors (status 422)
+- `ValidationError`: Input validation errors (status 400)
 - `NotFoundError`: Resource not found errors (status 404)
 - `UnauthorizedError`: Authentication errors (status 401)
 - `ForbiddenError`: Permission errors (status 403)
 - `ConflictError`: Resource conflicts (status 409)
-- `RateLimitError`: Rate limit exceeded (status 429)
-- `ServerError`: Internal server errors (status 500)
+- `BadRequestError`: General client-side errors (status 400)
+
+Other domain-specific exceptions (such as `DBError`, `InvalidTokenError`, `ExpiredTokenError`, `RevokedTokenError`, `InvalidCredentialsError`) are also available for advanced use cases.
 
 ## Integration with Logging
 
 All exceptions are automatically logged with appropriate severity levels:
 - Client errors (4xx) are logged as warnings
 - Server errors (5xx) are logged as errors
+
+## Limitations
+
+- Error response structure is fixed; customization requires code changes
+- Only HTTP-style errors are supported (exceptions must inherit from AppError or be handled by FastAPI)
+- No built-in support for localization or multiple languages
