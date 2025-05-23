@@ -10,6 +10,12 @@ A structured logging system for FastAPI applications that supports both text and
 - Logger dependency pattern for consistent logging across modules
 - Compatible with standard Python logging
 
+## Limitations
+
+- Only console (stdout) logging is supported out of the box.
+- No file logging, log rotation, or external service integration.
+- JSON logs include only timestamp, level, and message by default. Extra fields passed with `extra=` are not included unless you extend the formatter.
+
 ## Installation
 
 Install the logging dependencies:

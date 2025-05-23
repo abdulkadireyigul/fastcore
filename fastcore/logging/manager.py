@@ -4,6 +4,11 @@ applications.
 
 This module provides a simple and consistent 
 logging setup across different environments.
+
+Limitations:
+- Only console (stdout) logging is supported out of the box.
+- No file logging, log rotation, or external service integration.
+- JSON logs include only timestamp, level, and message by default.
 """
 
 import logging
@@ -26,12 +31,15 @@ def setup_logger(
     """
     Create and configure a logger instance.
 
+    Only console (stdout) logging is supported. No file logging or log rotation.
+    If json_format is True, only timestamp, level, and message are included in the output.
+
     Args:
         name: Logger name (usually __name__)
         level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         format: Log message format (ignored if json_format=True)
         debug: If True, sets level to DEBUG regardless of level parameter
-        json_format: If True, outputs logs in JSON format
+        json_format: If True, outputs logs in JSON format (basic fields only)
 
     Returns:
         Configured logger instance
@@ -68,10 +76,13 @@ def get_logger(
     """
     Get a configured logger instance.
 
+    Only console (stdout) logging is supported. No file logging or log rotation.
+    If json_format is True, only timestamp, level, and message are included in the output.
+
     Args:
         name: Logger name (usually __name__)
         settings: Optional application settings
-        json_format: If True, outputs logs in JSON format
+        json_format: If True, outputs logs in JSON format (basic fields only)
 
     Returns:
         Configured logger instance
@@ -93,13 +104,14 @@ def ensure_logger(
     """
     Ensure a logger instance is available by either using the provided one or creating a new one.
 
-    This function standardizes the logger fallback mechanism used throughout the application.
+    Only console (stdout) logging is supported. No file logging or log rotation.
+    If json_format is True, only timestamp, level, and message are included in the output.
 
     Args:
         logger: An existing logger instance to use if provided
         name: Module name (usually __name__) for creating a new logger if needed
         settings: Optional application settings
-        json_format: If True, outputs logs in JSON format when creating a new logger
+        json_format: If True, outputs logs in JSON format (basic fields only)
 
     Returns:
         Either the provided logger or a newly created one

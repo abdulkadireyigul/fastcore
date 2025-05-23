@@ -3,6 +3,10 @@ Custom log formatters for FastAPI applications.
 
 This module contains formatters that determine how log records are formatted.
 Currently supports JSON formatting for structured logging.
+
+Limitations:
+- JSON logs include only timestamp, level, and message by default.
+- Extra fields passed to logger (via extra=...) are not included unless you extend the formatter.
 """
 
 import json
@@ -16,6 +20,9 @@ class JsonFormatter(logging.Formatter):
 
     This formatter converts log records into JSON format, making them
     suitable for log aggregation services and structured logging.
+
+    Only timestamp, level, and message are included by default.
+    To include extra fields, subclass and extend this formatter.
     """
 
     def format(self, record: logging.LogRecord) -> str:
