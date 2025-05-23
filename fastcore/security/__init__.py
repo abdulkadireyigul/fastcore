@@ -6,6 +6,16 @@ for FastAPI applications, including JWT authentication,
 password handling, user authentication, and token management. 
 All main security functions, models, helpers, and exceptions 
 are exported from this module for easy access.
+
+Limitations:
+- Only password-based JWT authentication is included by default
+- No OAuth2 authorization code, implicit, or client credentials flows
+- No social login (Google, Facebook, etc.)
+- No multi-factor authentication
+- No user registration or management flows (only protocols/interfaces)
+- No advanced RBAC or permission system
+- No API key support
+- Stateless JWT blacklisting/revocation requires stateful DB tracking
 """
 
 from fastcore.security.dependencies import (

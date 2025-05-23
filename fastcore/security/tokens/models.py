@@ -1,3 +1,19 @@
+"""
+Token models for stateful JWT authentication.
+
+This module defines SQLAlchemy models for tokens and token types.
+
+Limitations:
+- Only password-based JWT authentication is included by default
+- No OAuth2 authorization code, implicit, or client credentials flows
+- No social login (Google, Facebook, etc.)
+- No multi-factor authentication
+- No user registration or management flows (only protocols/interfaces)
+- No advanced RBAC or permission system
+- No API key support
+- Stateless JWT blacklisting/revocation requires stateful DB tracking
+"""
+
 import enum
 from datetime import datetime, timezone
 
@@ -8,7 +24,16 @@ from fastcore.db.base import BaseModel
 
 
 class TokenType(str, enum.Enum):
-    """Enum for token types."""
+    """
+    Enum for token types.
+
+    Features:
+    - Supports access and refresh tokens
+
+    Limitations:
+    - Only password-based JWT authentication is included by default
+    - No advanced RBAC or permission system
+    """
 
     ACCESS = "access"
     REFRESH = "refresh"
@@ -17,8 +42,15 @@ class TokenType(str, enum.Enum):
 class Token(BaseModel):
     """
     Represents a JWT token record for stateful token tracking.
-    This model stores token metadata to enable validation and revocation,
-    making the token system stateful despite using JWTs.
+
+    Features:
+    - Stores token metadata for validation and revocation
+    - Enables stateful JWT authentication
+
+    Limitations:
+    - Only password-based JWT authentication is included by default
+    - No advanced RBAC or permission system
+    - Stateless JWT blacklisting/revocation requires stateful DB tracking
     """
 
     __tablename__ = "tokens"

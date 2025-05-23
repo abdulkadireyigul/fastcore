@@ -3,6 +3,16 @@ Security dependencies for FastAPI.
 
 This module provides dependency functions for FastAPI applications
 to handle authentication and secure routes.
+
+Limitations:
+- Only password-based JWT authentication is included by default
+- No OAuth2 authorization code, implicit, or client credentials flows
+- No social login (Google, Facebook, etc.)
+- No multi-factor authentication
+- No user registration or management flows (only protocols/interfaces)
+- No advanced RBAC or permission system
+- No API key support
+- Stateless JWT blacklisting/revocation requires stateful DB tracking
 """
 
 from typing import Any, Callable, Dict, Optional, TypeVar
@@ -42,8 +52,15 @@ async def get_token_data(
     """
     Validate the access token and return its data.
 
-    This dependency extracts and validates the JWT token
-    from the request, including stateful validation.
+    Features:
+    - Extracts and validates JWT token from the request
+    - Supports stateful validation
+
+    Limitations:
+    - Only password-based JWT authentication is included by default
+    - No OAuth2/social login/multi-factor authentication
+    - No advanced RBAC or permission system
+    - No API key support
 
     Args:
         token: The JWT token extracted from the Authorization header

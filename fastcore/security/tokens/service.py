@@ -1,3 +1,19 @@
+"""
+Token service for stateful JWT authentication.
+
+This module provides business logic for token creation, validation, revocation, and refresh.
+
+Limitations:
+- Only password-based JWT authentication is included by default
+- No OAuth2 authorization code, implicit, or client credentials flows
+- No social login (Google, Facebook, etc.)
+- No multi-factor authentication
+- No user registration or management flows (only protocols/interfaces)
+- No advanced RBAC or permission system
+- No API key support
+- Stateless JWT blacklisting/revocation requires stateful DB tracking
+"""
+
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional

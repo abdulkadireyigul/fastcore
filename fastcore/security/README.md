@@ -54,6 +54,17 @@ async def get_me(token_data=Depends(get_token_data)):
     return token_data
 ```
 
+## Limitations
+
+- Only password-based JWT authentication is included by default
+- No OAuth2 authorization code, implicit, or client credentials flows
+- No social login (Google, Facebook, etc.)
+- No multi-factor authentication
+- No user registration or management flows (only protocols/interfaces)
+- No advanced RBAC or permission system
+- No API key support
+- Stateless JWT blacklisting/revocation requires stateful DB tracking
+
 ## Notes
 - All token-related logic is now under the `tokens/` subpackage for maintainability and clarity.
 - All public API is accessible from the root `security` module for convenience.

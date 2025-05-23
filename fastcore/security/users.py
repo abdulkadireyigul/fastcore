@@ -3,6 +3,16 @@ User authentication utilities.
 
 This module provides flexible interfaces for user authentication that work with
 application-defined user models rather than imposing a specific structure.
+
+Limitations:
+- Only password-based JWT authentication is included by default
+- No OAuth2 authorization code, implicit, or client credentials flows
+- No social login (Google, Facebook, etc.)
+- No multi-factor authentication
+- No user registration or management flows (only protocols/interfaces)
+- No advanced RBAC or permission system
+- No API key support
+- Stateless JWT blacklisting/revocation requires stateful DB tracking
 """
 
 import abc
@@ -24,8 +34,14 @@ class UserAuthentication(Protocol[UserModelT]):
     """
     Protocol defining the user authentication interface.
 
-    This protocol allows the security module to work with any user model defined
-    by the application without requiring a specific structure.
+    Features:
+    - Works with any user model defined by the application
+    - Supports async authentication and user lookup
+
+    Limitations:
+    - Only password-based JWT authentication is included by default
+    - No user registration or management flows (only protocols/interfaces)
+    - No advanced RBAC or permission system
     """
 
     async def authenticate(self, credentials: Dict[str, Any]) -> Optional[UserModelT]:
@@ -67,7 +83,16 @@ class UserAuthentication(Protocol[UserModelT]):
 
 
 class AuthenticationError(AppError):
-    """Exception raised when authentication fails."""
+    """
+    Exception raised for authentication errors.
+
+    Features:
+    - Used for signaling authentication failures
+
+    Limitations:
+    - Only password-based JWT authentication is included by default
+    - No advanced RBAC or permission system
+    """
 
     def __init__(
         self,
@@ -78,12 +103,17 @@ class AuthenticationError(AppError):
         super().__init__(message=message, code=code, details=details, status_code=401)
 
 
-class BaseUserAuthentication(Generic[UserModelT], abc.ABC):
+class BaseUserAuthentication(abc.ABC, Generic[UserModelT]):
     """
-    Base implementation of the UserAuthentication protocol.
+    Abstract base class for user authentication.
 
-    This class provides a foundation for building authentication handlers
-    that work with application-defined user models.
+    Features:
+    - Provides a base for implementing custom authentication logic
+
+    Limitations:
+    - Only password-based JWT authentication is included by default
+    - No user registration or management flows (only protocols/interfaces)
+    - No advanced RBAC or permission system
     """
 
     def __init__(self, session: AsyncSession):

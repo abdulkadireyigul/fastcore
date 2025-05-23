@@ -3,6 +3,16 @@ Security module manager.
 
 This module provides a setup function for initializing the security module
 and integrating it with a FastAPI application.
+
+Limitations:
+- Only password-based JWT authentication is included by default
+- No OAuth2 authorization code, implicit, or client credentials flows
+- No social login (Google, Facebook, etc.)
+- No multi-factor authentication
+- No user registration or management flows (only protocols/interfaces)
+- No advanced RBAC or permission system
+- No API key support
+- Stateless JWT blacklisting/revocation requires stateful DB tracking
 """
 
 from typing import Optional
@@ -27,8 +37,17 @@ def setup_security(
     """
     Configure security features for a FastAPI application.
 
-    This function initializes the security module for a FastAPI application,
-    setting up token management and database tables.
+    Features:
+    - Initializes the security module for FastAPI
+    - Sets up token management and database tables
+
+    Limitations:
+    - Only password-based JWT authentication is included by default
+    - No OAuth2/social login/multi-factor authentication
+    - No user registration or management flows (only protocols/interfaces)
+    - No advanced RBAC or permission system
+    - No API key support
+    - Stateless JWT blacklisting/revocation requires stateful DB tracking
 
     Args:
         app: The FastAPI application to configure
