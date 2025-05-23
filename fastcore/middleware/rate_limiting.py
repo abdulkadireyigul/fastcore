@@ -1,3 +1,14 @@
+"""
+Rate limiting middleware for FastAPI applications.
+
+Provides both in-memory and Redis-based rate limiting middleware.
+
+Limitations:
+- Only global, IP-based rate limiting is supported (no per-route or user-based limits)
+- Middleware is set up at startup, not dynamically per request
+- Advanced features (e.g., custom backends, per-route config) are not included
+"""
+
 import sys
 import time
 
@@ -12,7 +23,14 @@ from fastcore.logging.manager import Logger
 class SimpleRateLimitMiddleware(BaseHTTPMiddleware):
     """
     Simple IP-based rate limiting middleware (memory backend).
-    Can be extended with Redis or other backends for production use.
+
+    Features:
+    - Limits requests per IP per time window (memory only)
+    - Configurable max_requests and window_seconds
+
+    Limitations:
+    - Only global, IP-based rate limiting is supported (no per-route or user-based limits)
+    - Not suitable for production in distributed environments
     """
 
     def __init__(self, app, max_requests=60, window_seconds=60, logger=None):
@@ -43,6 +61,15 @@ class SimpleRateLimitMiddleware(BaseHTTPMiddleware):
 class RedisRateLimitMiddleware(BaseHTTPMiddleware):
     """
     Redis-based IP rate limiting middleware using the cache module.
+
+    Features:
+    - Limits requests per IP per time window (using Redis)
+    - Configurable max_requests and window_seconds
+
+    Limitations:
+    - Only global, IP-based rate limiting is supported (no per-route or user-based limits)
+    - Middleware is set up at startup, not dynamically per request
+    - Advanced features (e.g., custom backends, per-route config) are not included
     """
 
     def __init__(self, app, max_requests=60, window_seconds=60, logger=None):

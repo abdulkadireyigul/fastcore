@@ -15,7 +15,18 @@ def setup_middlewares(
     logger: Optional[Logger] = None,
 ) -> None:
     """
-    Sets up all middlewares for the application. Extend here for lifecycle management if needed.
+    Sets up all middlewares for the application.
+
+    Features:
+    - Adds CORS middleware (configurable via settings.MIDDLEWARE_CORS_OPTIONS)
+    - Adds rate limiting middleware (memory or Redis backend)
+
+    Limitations:
+    - Only CORS and rate limiting middleware are included by default
+    - No request timing middleware is implemented
+    - No per-route or user-based rate limiting
+    - Middleware is set up at startup, not dynamically per request
+    - Advanced CORS and rate limiting features (e.g., per-route config, custom backends) are not included
     """
     log = ensure_logger(logger, __name__, settings)
 

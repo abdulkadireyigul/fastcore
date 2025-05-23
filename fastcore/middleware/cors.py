@@ -1,3 +1,13 @@
+"""
+CORS middleware integration for FastAPI applications.
+
+Adds CORS middleware to the application using options from settings.
+
+Limitations:
+- Only global CORS configuration is supported (no per-route config)
+- Options must be provided as a dictionary in settings.MIDDLEWARE_CORS_OPTIONS
+"""
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -8,6 +18,14 @@ from fastcore.logging.manager import Logger
 def add_cors_middleware(app: FastAPI, settings: BaseAppSettings, logger: Logger):
     """
     Adds CORS middleware to the application. Options are loaded from config.
+
+    Features:
+    - Configurable via settings.MIDDLEWARE_CORS_OPTIONS (dict)
+    - Sensible defaults if not provided
+
+    Limitations:
+    - Only global CORS configuration is supported (no per-route config)
+    - Options must be provided as a dictionary in settings.MIDDLEWARE_CORS_OPTIONS
     """
     cors_options = getattr(
         settings,

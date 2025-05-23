@@ -6,7 +6,6 @@ Provides common middleware components for FastAPI applications with consistent c
 
 - CORS configuration with sensible defaults
 - Rate limiting middleware
-- Request timing middleware
 - Centralized middleware setup
 
 ## Installation
@@ -25,12 +24,13 @@ Configure middleware through environment variables or settings class:
 from fastcore.config import BaseAppSettings
 
 class AppSettings(BaseAppSettings):
-    # CORS Settings
-    CORS_ALLOW_ORIGINS: str = "*"  # Comma-separated list or "*"
-    CORS_ALLOW_METHODS: str = "GET,POST,PUT,DELETE,OPTIONS"
-    CORS_ALLOW_HEADERS: str = ""  # Empty means allow all
-    CORS_ALLOW_CREDENTIALS: bool = False
-    
+    # CORS options as a dictionary (recommended)
+    MIDDLEWARE_CORS_OPTIONS = {
+        "allow_origins": ["*"],
+        "allow_credentials": True,
+        "allow_methods": ["*"],
+        "allow_headers": ["*"],
+    }
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = False
     RATE_LIMIT_REQUESTS: int = 100
@@ -70,49 +70,34 @@ setup_middlewares(app, settings, logger)
 
 ### CORS Configuration
 
-Configure Cross-Origin Resource Sharing:
+To add CORS middleware directly:
 
 ```python
 from fastapi import FastAPI
-from fastcore.middleware.cors import configure_cors
+from fastcore.middleware.cors import add_cors_middleware
+from fastcore.config import get_settings
+from fastcore.logging import get_logger
 
 app = FastAPI()
-
-# Simple configuration
-configure_cors(app, allow_origins=["https://frontend.example.com"])
-
-# Advanced configuration
-configure_cors(
-    app,
-    allow_origins=["https://app.example.com", "https://admin.example.com"],
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type"],
-    allow_credentials=True,
-    max_age=3600
-)
+settings = get_settings()
+logger = get_logger(__name__, settings)
+add_cors_middleware(app, settings, logger)
 ```
 
 ### Rate Limiting
 
-Protect your API from abuse with rate limiting:
+To add rate limiting middleware directly:
 
 ```python
 from fastapi import FastAPI
-from fastcore.middleware.rate_limiting import configure_rate_limiting
+from fastcore.middleware.rate_limiting import add_rate_limiting_middleware
+from fastcore.config import get_settings
+from fastcore.logging import get_logger
 
 app = FastAPI()
-
-# Basic rate limiting
-configure_rate_limiting(app)  # Uses default settings (100 req/minute)
-
-# Custom rate limiting
-configure_rate_limiting(
-    app,
-    limit=50,  # 50 requests per window
-    window_seconds=3600,  # 1 hour window
-    exclude_paths=["/docs", "/redoc", "/health"],  # Paths to exclude
-    key_func=lambda request: request.client.host  # Key function (IP-based)
-)
+settings = get_settings()
+logger = get_logger(__name__, settings)
+add_rate_limiting_middleware(app, settings, logger)
 ```
 
 ## Middleware Components
@@ -120,8 +105,7 @@ configure_rate_limiting(
 The following middleware components are available:
 
 - **CORS**: Cross-Origin Resource Sharing configuration
-- **Rate Limiting**: Request rate limiting based on client IP or custom key
-- **Request Timing**: Add timing headers to responses
+- **Rate Limiting**: Request rate limiting based on client IP or custom key (supports both in-memory and Redis backends; only global, IP-based limits)
 
 ## Integration with Logging
 
@@ -140,3 +124,11 @@ logger = get_logger(__name__, settings)
 # Middleware will use this logger for events
 setup_middlewares(app, settings, logger)
 ```
+
+## Limitations
+
+- Only CORS and rate limiting middleware are included by default
+- Rate limiting supports both in-memory and Redis backends, but only global, IP-based limits (no per-route or user-based rate limiting)
+- No request timing middleware is implemented (despite earlier mention)
+- Middleware is set up at startup, not dynamically per request
+- Advanced CORS and rate limiting features (e.g., per-route config, custom backends) are not included
