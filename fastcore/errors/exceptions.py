@@ -10,8 +10,22 @@ Limitations:
 - Error response structure is fixed; customization requires code changes
 """
 
+import datetime
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional, Union
+
+
+def _convert_datetimes(obj):
+    """
+    Recursively convert all datetime objects in a dict/list to ISO strings.
+    """
+    if isinstance(obj, dict):
+        return {k: _convert_datetimes(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_convert_datetimes(i) for i in obj]
+    elif isinstance(obj, datetime.datetime):
+        return obj.isoformat()
+    return obj
 
 
 class AppError(Exception):
@@ -38,7 +52,8 @@ class AppError(Exception):
         self.message = message
         self.code = code
         self.status_code = status_code
-        self.details = details or {}
+        # Ensure details are always JSON serializable
+        self.details = _convert_datetimes(details or {})
         super().__init__(self.message)
 
 
