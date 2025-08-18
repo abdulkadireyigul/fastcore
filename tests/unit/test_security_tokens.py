@@ -28,6 +28,18 @@ from fastcore.security.tokens.service import (
 from fastcore.security.tokens.utils import decode_token
 
 
+# Mock User model for testing Token relationships
+from fastcore.db.base import BaseModel
+from sqlalchemy import Column, Integer
+from sqlalchemy.orm import relationship
+
+
+class User(BaseModel):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    tokens = relationship("Token", back_populates="user")
+
+
 # --- Helpers ---
 def make_mock_scalars(first=None, all_=None):
     mock_scalars = MagicMock()
