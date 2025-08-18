@@ -27,17 +27,18 @@ from fastcore.security.tokens.service import (
 )
 from fastcore.security.tokens.utils import decode_token
 
+# ATTENTION: If you only want to test a specific file, uncomment below.
+# # Mock User model for testing Token relationships
+# from fastcore.db.base import BaseModel
+# from sqlalchemy import Column, Integer
+# from sqlalchemy.orm import relationship
 
-# Mock User model for testing Token relationships
-from fastcore.db.base import BaseModel
-from sqlalchemy import Column, Integer
-from sqlalchemy.orm import relationship
 
-
-class User(BaseModel):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    tokens = relationship("Token", back_populates="user")
+# class User(BaseModel):
+#     __tablename__ = "users"
+#     id = Column(Integer, primary_key=True)
+#     tokens = relationship("Token", back_populates="user")
+#     __table_args__ = {"extend_existing": True}
 
 
 # --- Helpers ---
