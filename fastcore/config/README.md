@@ -104,6 +104,7 @@ Common environment variables (see .env.example file in this module):
 - Some variables (like `ALEMBIC_DATABASE_URL`, `CACHE_KEY_PREFIX`) are optional and only needed for advanced use cases.
 
 - `APP_NAME`: Name of your application
+- `APP_ENV`: The environment variable of the application
 - `VERSION`: Application version
 - `DEBUG`: Enable debug mode (default: `False` in production)
 - `DATABASE_URL`: Database connection string (e.g., `postgresql+asyncpg://...`)

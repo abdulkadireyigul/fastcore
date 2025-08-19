@@ -25,6 +25,7 @@ class BaseAppSettings(BaseSettings):
 
     Attributes:
         APP_NAME: The name of the application
+        APP_ENV: The environment variable of the application
         DEBUG: Flag to enable/disable debug mode
         VERSION: Application version string
         CACHE_URL: Redis connection URL for caching
@@ -51,6 +52,7 @@ class BaseAppSettings(BaseSettings):
     """
 
     APP_NAME: str = Field(default="FastCore")
+    APP_ENV: str = Field(default="development")
     DEBUG: bool = Field(default=False)
     VERSION: str = Field(default="0.1.0")
 
