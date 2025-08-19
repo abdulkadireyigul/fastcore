@@ -458,3 +458,40 @@ async def logout_user_cookie(
         )
 
     return await logout_user(token, session, response)
+
+
+async def remove_auth_cookies(
+    response: Response | None = None,
+) -> Dict[str, str]:
+    """
+    Remove the current access token and refresh token cookies.
+
+    Args:
+        response: FastAPI response object for cookie operations
+
+    Returns:
+        A success message
+    """
+    try:
+        # Determine if the environment is development to set the secure flag
+        is_dev_env = os.getenv("APP_ENV") == "development"
+        secure = not is_dev_env
+
+        # Clear refresh and access token cookies if response object is provided
+        if response:
+            response.delete_cookie(
+                key="access_token",
+                httponly=True,
+                secure=secure,
+                samesite="none" if secure else "strict",
+            )
+            response.delete_cookie(
+                key="refresh_token",
+                httponly=True,
+                secure=secure,
+                samesite="none" if secure else "strict",
+            )
+
+        return {"message": "Successfully removed the auth cookies"}
+    except Exception as e:
+        return {"message": "Failed to remove the auth cookies"}

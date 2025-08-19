@@ -307,6 +307,7 @@ from fastcore.security.dependencies import (
     get_current_user_from_cookie_dependency,
     get_token_data_from_cookie,
     logout_user_cookie,
+    remove_auth_cookies,
     set_auth_cookies,
 )
 
@@ -894,3 +895,66 @@ async def test_cookie_logout_flow():
         mock_logout_user.assert_called_once_with(
             "valid_token", mock_session, mock_response
         )
+
+
+@pytest.mark.asyncio
+async def test_remove_auth_cookies_dev_env(monkeypatch):
+    # Arrange
+    monkeypatch.setenv("APP_ENV", "development")
+    response = MagicMock(spec=Response)
+
+    # Act
+    result = await remove_auth_cookies(response)
+
+    # Assert
+    assert result == {"message": "Successfully removed the auth cookies"}
+    response.delete_cookie.assert_any_call(
+        key="access_token",
+        httponly=True,
+        secure=False,  # dev env -> secure = False
+        samesite="strict",
+    )
+    response.delete_cookie.assert_any_call(
+        key="refresh_token",
+        httponly=True,
+        secure=False,
+        samesite="strict",
+    )
+
+
+@pytest.mark.asyncio
+async def test_remove_auth_cookies_prod_env(monkeypatch):
+    # Arrange
+    monkeypatch.setenv("APP_ENV", "production")
+    response = MagicMock(spec=Response)
+
+    # Act
+    result = await remove_auth_cookies(response)
+
+    # Assert
+    assert result == {"message": "Successfully removed the auth cookies"}
+    response.delete_cookie.assert_any_call(
+        key="access_token",
+        httponly=True,
+        secure=True,  # prod env -> secure = True
+        samesite="none",
+    )
+    response.delete_cookie.assert_any_call(
+        key="refresh_token",
+        httponly=True,
+        secure=True,
+        samesite="none",
+    )
+
+
+@pytest.mark.asyncio
+async def test_remove_auth_cookies_no_response(monkeypatch):
+    # Arrange
+    monkeypatch.setenv("APP_ENV", "production")
+
+    # Act
+    result = await remove_auth_cookies(None)
+
+    # Assert
+    assert result == {"message": "Successfully removed the auth cookies"}
+    # no response object -> no delete_cookie call
