@@ -86,34 +86,6 @@ add_cors_middleware(app, settings, logger)
 
 ### Rate Limiting
 
-The rate limiting middleware provides flexible request rate limiting with support for route-specific configuration.
-
-#### Configuration
-
-Configure through settings:
-
-```python
-from fastcore.config import BaseAppSettings
-
-class AppSettings(BaseAppSettings):
-    RATE_LIMITING_BACKEND = "redis"  # or "memory"
-    RATE_LIMITING_OPTIONS = {
-        "max_requests": 60,  # Default requests per window
-        "window_seconds": 60,  # Default window size
-        "route_config": {
-            "/ws": {
-                "enabled": False  # Disable rate limiting for WebSocket
-            },
-            "/api/sensitive": {
-                "max_requests": 10,  # Stricter limit
-                "window_seconds": 30
-            }
-        }
-    }
-```
-
-#### Direct Usage
-
 To add rate limiting middleware directly:
 
 ```python
@@ -127,27 +99,6 @@ settings = get_settings()
 logger = get_logger(__name__, settings)
 add_rate_limiting_middleware(app, settings, logger)
 ```
-
-#### Features
-
-- Support for both memory and Redis backends
-- Per-route rate limiting configuration
-- Option to disable rate limiting for specific routes
-- Rate limit headers (X-RateLimit-*)
-- Automatic fallback to memory if Redis is unavailable
-
-#### Production Notes
-
-1. **Redis Backend**
-   - Recommended for production/distributed deployments
-   - Ensures consistent rate limiting across instances
-   - Automatic cleanup via TTL
-   - Fallback to memory if Redis is unavailable
-
-2. **Memory Backend**
-   - Suitable for development or single-instance deployments
-   - No external dependencies
-   - Not suitable for distributed setups
 
 ## Middleware Components
 
@@ -177,7 +128,7 @@ setup_middlewares(app, settings, logger)
 ## Limitations
 
 - Only CORS and rate limiting middleware are included by default
-- Rate limiting is IP-based only (no user-based limits)
-- No request timing middleware is implemented
-- Middleware configuration is static (no dynamic updates at runtime)
-- No built-in support for rate limit monitoring/metrics
+- Rate limiting supports both in-memory and Redis backends, but only global, IP-based limits (no per-route or user-based rate limiting)
+- No request timing middleware is implemented (despite earlier mention)
+- Middleware is set up at startup, not dynamically per request
+- Advanced CORS and rate limiting features (e.g., per-route config, custom backends) are not included
