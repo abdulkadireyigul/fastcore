@@ -115,8 +115,22 @@ class BaseAppSettings(BaseSettings):
         description="CORS middleware options (passed to CORSMiddleware)",
     )
     RATE_LIMITING_OPTIONS: dict = Field(
-        default_factory=lambda: {"max_requests": 60, "window_seconds": 60},
-        description="Rate limiting options (max_requests, window_seconds)",
+        default_factory=lambda: {
+            "max_requests": 60,
+            "window_seconds": 60,
+            "route_config": {
+                # "/api/items/{item_id}": {
+                #     "max_requests": 100,  # Applies to all methods
+                #     "window_seconds": 60
+                # },
+                # "/api/users": {
+                #     "GET": {"max_requests": 1000},  # Method-specific
+                #     "POST": {"max_requests": 50},
+                #     "enabled": False  # Global flag for the route
+                # }
+            },
+        },
+        description="Rate limiting options (max_requests, window_seconds) and per-route configuration",
     )
     RATE_LIMITING_BACKEND: str = Field(
         default="memory", description='Rate limiting backend: "memory" or "redis"'
