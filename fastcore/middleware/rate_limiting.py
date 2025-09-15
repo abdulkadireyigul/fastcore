@@ -148,7 +148,12 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
                     return {**config, **config[method.upper()]}
                 return config
 
-        return {}
+        # If no match found, return default configuration
+        return {
+            "max_requests": self.max_requests,
+            "window_seconds": self.window_seconds,
+            "enabled": True,  # Default to enabled if not explicitly disabled
+        }
 
 
 class SimpleRateLimitMiddleware(BaseRateLimitMiddleware):
