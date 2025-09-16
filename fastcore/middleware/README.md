@@ -4,38 +4,63 @@ Provides common middleware components for FastAPI applications with consistent c
 
 ## Features
 
-- CORS configuration with sensible defaults
-- Rate limiting middleware
-- Centralized middleware setup
+  - CORS configuration with sensible defaults
+  - Advanced rate limiting middleware with **route-based configuration** and **Redis support**
+  - Centralized middleware setup
 
 ## Installation
 
 Install the required dependencies:
 
 ```bash
-poetry add fastapi
+poetry add fastapi redis
 ```
 
 ## Configuration
 
-Configure middleware through environment variables or settings class:
+Configure middleware through environment variables or a settings class. The rate limiting is now configured using a single dictionary for more flexibility.
 
 ```python
+from pydantic import Field
 from fastcore.config import BaseAppSettings
 
 class AppSettings(BaseAppSettings):
     # CORS options as a dictionary (recommended)
-    MIDDLEWARE_CORS_OPTIONS = {
-        "allow_origins": ["*"],
-        "allow_credentials": True,
-        "allow_methods": ["*"],
-        "allow_headers": ["*"],
-    }
+    MIDDLEWARE_CORS_OPTIONS: dict = Field(
+        default_factory=lambda: {
+            "allow_origins": ["*"],
+            "allow_credentials": True,
+            "allow_methods": ["*"],
+            "allow_headers": ["*"],
+        }
+    )
+
     # Rate Limiting
-    RATE_LIMIT_ENABLED: bool = False
-    RATE_LIMIT_REQUESTS: int = 100
-    RATE_LIMIT_WINDOW_SECONDS: int = 60
+    RATE_LIMITING_BACKEND: str = "memory"  # 'redis' or 'memory'
+    RATE_LIMITING_OPTIONS: dict = Field(
+        default_factory=lambda: {
+            "max_requests": 60,
+            "window_seconds": 60,
+            "routes": {
+                # Method-specific configs
+                "POST:/api/users": {"max_requests": 10, "window_seconds": 60},
+                "GET:/api/users": {"max_requests": 100, "window_seconds": 60},
+                # Any method for this endpoint
+                "/api/heavy-endpoint": {"max_requests": 10, "window_seconds": 60},
+                # Dynamic routes with method
+                "GET:/dzi/{slide_id}_files/{level:int}/{col:int}_{row:int}.jpeg": {
+                    "max_requests": 1000,
+                    "window_seconds": 60,
+                },
+                # Disable completely for any method
+                "/api/no-limit": {"disabled": True},
+            },
+        },
+        description="Advanced rate limiting options including per-route configurations.",
+    )
 ```
+
+**Note:** For a production environment, it is recommended to define `RATE_LIMITING_OPTIONS` in your `.env` file as a **valid JSON string**.
 
 ## Usage
 
@@ -104,8 +129,9 @@ add_rate_limiting_middleware(app, settings, logger)
 
 The following middleware components are available:
 
-- **CORS**: Cross-Origin Resource Sharing configuration
-- **Rate Limiting**: Request rate limiting based on client IP or custom key (supports both in-memory and Redis backends; only global, IP-based limits)
+  - **CORS**: Cross-Origin Resource Sharing configuration
+  - **Rate Limiting**: Advanced request rate limiting based on client IP. It supports **per-route, per-method configuration** and can be entirely disabled for specific endpoints. It supports both **in-memory** and **Redis backends**.
+
 
 ## Integration with Logging
 
@@ -127,8 +153,6 @@ setup_middlewares(app, settings, logger)
 
 ## Limitations
 
-- Only CORS and rate limiting middleware are included by default
-- Rate limiting supports both in-memory and Redis backends, but only global, IP-based limits (no per-route or user-based rate limiting)
-- No request timing middleware is implemented (despite earlier mention)
-- Middleware is set up at startup, not dynamically per request
-- Advanced CORS and rate limiting features (e.g., per-route config, custom backends) are not included
+  - Only CORS and rate limiting middleware are included by default.
+  - No request timing middleware is implemented.
+  - Middleware is set up at startup, not dynamically per request.
