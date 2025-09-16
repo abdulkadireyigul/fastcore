@@ -13,7 +13,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
+from pydantic import BaseModel
 
+from fastcore.config.base import BaseAppSettings
 from fastcore.middleware.cors import add_cors_middleware
 from fastcore.middleware.manager import setup_middlewares
 from fastcore.middleware.rate_limiting import (
@@ -183,3 +185,566 @@ async def test_redis_rate_limit_middleware_blocks(monkeypatch):
     resp = await middleware.dispatch(request, call_next)
     assert resp.status_code == 429
     logger.warning.assert_called()
+
+
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+from fastapi import FastAPI, Request
+from starlette.responses import Response
+
+# # from your_module import (  # Adjust import path
+# #     SimpleRateLimitMiddleware,
+# #     RedisRateLimitMiddleware,
+# #     add_rate_limiting_middleware
+# # )
+
+
+# class MockSettings(BaseModel):
+#     """Mock settings class for testing"""
+
+#     def __init__(self, rate_limiting_options=None, rate_limiting_backend="memory"):
+#         self.RATE_LIMITING_OPTIONS = rate_limiting_options or {
+#             "max_requests": 60,
+#             "window_seconds": 60,
+#         }
+#         self.RATE_LIMITING_BACKEND = rate_limiting_backend
+
+
+@pytest.fixture
+def mock_logger():
+    """Mock logger fixture"""
+    logger = Mock()
+    logger.info = Mock()
+    logger.debug = Mock()
+    logger.warning = Mock()
+    logger.error = Mock()
+    return logger
+
+
+@pytest.fixture
+def app():
+    """FastAPI app fixture"""
+    return FastAPI()
+
+
+@pytest.fixture
+def mock_request():
+    """Mock request fixture"""
+    request = Mock(spec=Request)
+    request.client.host = "192.168.1.1"
+    request.method = "GET"
+    request.url.path = "/api/test"
+    return request
+
+
+# Test base middleware functionality
+def test_fastapi_to_regex_simple_path(app, mock_logger):
+    """Test regex conversion for simple paths"""
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger)
+    result = middleware._fastapi_to_regex("/api/users")
+    assert result == "^/api/users$"
+
+
+def test_fastapi_to_regex_with_params(app, mock_logger):
+    """Test regex conversion with path parameters"""
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger)
+
+    # Test string parameter
+    result = middleware._fastapi_to_regex("/api/users/{user_id}")
+    assert result == "^/api/users/([^/]+)$"
+
+    # Test int parameter
+    result = middleware._fastapi_to_regex("/api/users/{user_id:int}")
+    assert result == "^/api/users/(\\d+)$"
+
+    # Test float parameter
+    result = middleware._fastapi_to_regex("/api/users/{price:float}")
+    assert result == "^/api/users/([\\d\\.]+)$"
+
+
+def test_fastapi_to_regex_complex_path(app, mock_logger):
+    """Test regex conversion for complex DZI path"""
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger)
+    result = middleware._fastapi_to_regex(
+        "/dzi/{slide_id}_files/{level:int}/{col:int}_{row:int}.jpeg"
+    )
+    expected = "^/dzi/([^/]+)_files/(\\d+)/(\\d+)_(\\d+)\\.jpeg$"
+    assert result == expected
+
+
+# Test route configuration matching logic
+def test_exact_path_match(app, mock_logger):
+    """Test exact path matching"""
+    routes = {"/api/users": {"max_requests": 10, "window_seconds": 60}}
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
+
+    max_req, window, disabled = middleware._get_route_config("GET", "/api/users")
+    assert max_req == 10
+    assert window == 60
+    assert disabled == False
+
+
+def test_method_specific_match(app, mock_logger):
+    """Test method-specific path matching"""
+    routes = {
+        "POST:/api/users": {"max_requests": 5, "window_seconds": 300},
+        "GET:/api/users": {"max_requests": 100, "window_seconds": 60},
+    }
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
+
+    # Test POST
+    max_req, window, disabled = middleware._get_route_config("POST", "/api/users")
+    assert max_req == 5
+    assert window == 300
+
+    # Test GET
+    max_req, window, disabled = middleware._get_route_config("GET", "/api/users")
+    assert max_req == 100
+    assert window == 60
+
+
+def test_method_priority_over_general(app, mock_logger):
+    """Test that method-specific config has priority over general"""
+    routes = {
+        "/api/users": {"max_requests": 50, "window_seconds": 60},
+        "POST:/api/users": {"max_requests": 5, "window_seconds": 300},
+    }
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
+
+    # POST should use method-specific config
+    max_req, window, disabled = middleware._get_route_config("POST", "/api/users")
+    assert max_req == 5
+    assert window == 300
+
+    # GET should use general config
+    max_req, window, disabled = middleware._get_route_config("GET", "/api/users")
+    assert max_req == 50
+    assert window == 60
+
+
+def test_regex_pattern_matching(app, mock_logger):
+    """Test regex pattern matching for dynamic routes"""
+    routes = {"/api/users/{user_id:int}": {"max_requests": 20, "window_seconds": 60}}
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
+
+    max_req, window, disabled = middleware._get_route_config("GET", "/api/users/123")
+    assert max_req == 20
+    assert window == 60
+
+
+def test_method_regex_pattern_matching(app, mock_logger):
+    """Test method-specific regex pattern matching"""
+    routes = {
+        "GET:/dzi/{slide_id}_files/{level:int}/{col:int}_{row:int}.jpeg": {
+            "max_requests": 1000,
+            "window_seconds": 60,
+        }
+    }
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
+
+    # Should match GET request
+    max_req, window, disabled = middleware._get_route_config(
+        "GET", "/dzi/slide123_files/5/10_20.jpeg"
+    )
+    assert max_req == 1000
+    assert window == 60
+
+    # Should not match POST request (use defaults)
+    max_req, window, disabled = middleware._get_route_config(
+        "POST", "/dzi/slide123_files/5/10_20.jpeg"
+    )
+    assert max_req == 60  # default
+    assert window == 60  # default
+
+
+def test_disabled_route(app, mock_logger):
+    """Test disabled route configuration"""
+    routes = {"/api/no-limit": {"disabled": True}}
+    middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
+
+    max_req, window, disabled = middleware._get_route_config("GET", "/api/no-limit")
+    assert disabled == True
+
+
+def test_default_config_fallback(app, mock_logger):
+    """Test fallback to default config when no route matches"""
+    routes = {"/api/users": {"max_requests": 10, "window_seconds": 60}}
+    middleware = SimpleRateLimitMiddleware(
+        app, max_requests=100, window_seconds=120, logger=mock_logger, routes=routes
+    )
+
+    # Non-matching route should use defaults
+    max_req, window, disabled = middleware._get_route_config("GET", "/api/other")
+    assert max_req == 100
+    assert window == 120
+    assert disabled == False
+
+
+# Test SimpleRateLimitMiddleware functionality
+@pytest.mark.asyncio
+async def test_rate_limiting_basic(app, mock_logger):
+    """Test basic rate limiting functionality"""
+    middleware = SimpleRateLimitMiddleware(
+        app, max_requests=2, window_seconds=60, logger=mock_logger
+    )
+
+    request = Mock(spec=Request)
+    request.client.host = "192.168.1.1"
+    request.method = "GET"
+    request.url.path = "/api/test"
+
+    call_next = AsyncMock(return_value=Response("OK"))
+
+    # First two requests should pass
+    response1 = await middleware.dispatch(request, call_next)
+    response2 = await middleware.dispatch(request, call_next)
+
+    assert call_next.call_count == 2
+
+    # Third request should be rate limited
+    response3 = await middleware.dispatch(request, call_next)
+    assert response3.status_code == 429
+    assert response3.body.decode() == "Too Many Requests"
+
+
+@pytest.mark.asyncio
+async def test_disabled_route_bypass(app, mock_logger):
+    """Test that disabled routes bypass rate limiting"""
+    routes = {"/api/no-limit": {"disabled": True}}
+    middleware = SimpleRateLimitMiddleware(
+        app, max_requests=1, window_seconds=60, logger=mock_logger, routes=routes
+    )
+
+    request = Mock(spec=Request)
+    request.client.host = "192.168.1.1"
+    request.method = "GET"
+    request.url.path = "/api/no-limit"
+
+    call_next = AsyncMock(return_value=Response("OK"))
+
+    # Multiple requests should all pass
+    for _ in range(5):
+        response = await middleware.dispatch(request, call_next)
+        assert response.body.decode() == "OK"
+
+    assert call_next.call_count == 5
+
+
+@pytest.mark.asyncio
+async def test_different_ips_separate_limits(app, mock_logger):
+    """Test that different IPs have separate rate limits"""
+    middleware = SimpleRateLimitMiddleware(
+        app, max_requests=1, window_seconds=60, logger=mock_logger
+    )
+
+    request1 = Mock(spec=Request)
+    request1.client.host = "192.168.1.1"
+    request1.method = "GET"
+    request1.url.path = "/api/test"
+
+    request2 = Mock(spec=Request)
+    request2.client.host = "192.168.1.2"
+    request2.method = "GET"
+    request2.url.path = "/api/test"
+
+    call_next = AsyncMock(return_value=Response("OK"))
+
+    # Both IPs should be able to make one request
+    response1 = await middleware.dispatch(request1, call_next)
+    response2 = await middleware.dispatch(request2, call_next)
+
+    assert call_next.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_different_methods_separate_limits(app, mock_logger):
+    """Test that different methods have separate rate limits"""
+    routes = {
+        "GET:/api/test": {"max_requests": 1, "window_seconds": 60},
+        "POST:/api/test": {"max_requests": 2, "window_seconds": 60},
+    }
+    middleware = SimpleRateLimitMiddleware(
+        app, max_requests=10, window_seconds=60, logger=mock_logger, routes=routes
+    )
+
+    get_request = Mock(spec=Request)
+    get_request.client.host = "192.168.1.1"
+    get_request.method = "GET"
+    get_request.url.path = "/api/test"
+
+    post_request = Mock(spec=Request)
+    post_request.client.host = "192.168.1.1"
+    post_request.method = "POST"
+    post_request.url.path = "/api/test"
+
+    call_next = AsyncMock(return_value=Response("OK"))
+
+    # GET: 1 request should pass, 2nd should fail
+    await middleware.dispatch(get_request, call_next)
+    response = await middleware.dispatch(get_request, call_next)
+    assert response.status_code == 429
+
+    # POST: 2 requests should pass
+    await middleware.dispatch(post_request, call_next)
+    response = await middleware.dispatch(post_request, call_next)
+    assert response.body.decode() == "OK"
+
+
+@pytest.mark.asyncio
+async def test_different_paths_separate_limits(app, mock_logger):
+    """Test that different paths have separate rate limits"""
+    routes = {
+        "/api/heavy": {"max_requests": 1, "window_seconds": 60},
+        "/api/light": {"max_requests": 5, "window_seconds": 60},
+    }
+    middleware = SimpleRateLimitMiddleware(
+        app, max_requests=10, window_seconds=60, logger=mock_logger, routes=routes
+    )
+
+    heavy_request = Mock(spec=Request)
+    heavy_request.client.host = "192.168.1.1"
+    heavy_request.method = "GET"
+    heavy_request.url.path = "/api/heavy"
+
+    light_request = Mock(spec=Request)
+    light_request.client.host = "192.168.1.1"
+    light_request.method = "GET"
+    light_request.url.path = "/api/light"
+
+    call_next = AsyncMock(return_value=Response("OK"))
+
+    # Heavy endpoint: 1 request should pass, 2nd should fail
+    await middleware.dispatch(heavy_request, call_next)
+    response = await middleware.dispatch(heavy_request, call_next)
+    assert response.status_code == 429
+
+    # Light endpoint: should still work (separate counter)
+    response = await middleware.dispatch(light_request, call_next)
+    assert response.body.decode() == "OK"
+
+
+@pytest.mark.asyncio
+async def test_dynamic_route_matching(app, mock_logger):
+    """Test dynamic route matching with real path"""
+    routes = {
+        "/dzi/{slide_id}_files/{level:int}/{col:int}_{row:int}.jpeg": {
+            "max_requests": 2,
+            "window_seconds": 60,
+        }
+    }
+    middleware = SimpleRateLimitMiddleware(
+        app, max_requests=1, window_seconds=60, logger=mock_logger, routes=routes
+    )
+
+    request = Mock(spec=Request)
+    request.client.host = "192.168.1.1"
+    request.method = "GET"
+    request.url.path = "/dzi/slide123_files/5/10_20.jpeg"
+
+    call_next = AsyncMock(return_value=Response("OK"))
+
+    # Should use route-specific config (2 requests allowed)
+    await middleware.dispatch(request, call_next)
+    await middleware.dispatch(request, call_next)
+    response = await middleware.dispatch(request, call_next)
+    assert response.status_code == 429
+
+
+# Test Redis middleware functionality
+@pytest.mark.asyncio
+async def test_redis_rate_limiting_success(app, mock_logger):
+    """Test Redis-based rate limiting when cache works"""
+    mock_cache = AsyncMock()
+    mock_cache.incr.return_value = 1
+    mock_cache.expire = AsyncMock()
+
+    with patch(
+        "fastcore.middleware.rate_limiting.get_cache", return_value=mock_cache
+    ):  # Adjust import
+        middleware = RedisRateLimitMiddleware(
+            app, max_requests=2, window_seconds=60, logger=mock_logger
+        )
+
+        request = Mock(spec=Request)
+        request.client.host = "192.168.1.1"
+        request.method = "GET"
+        request.url.path = "/api/test"
+
+        call_next = AsyncMock(return_value=Response("OK"))
+
+        response = await middleware.dispatch(request, call_next)
+
+        assert call_next.call_count == 1
+        mock_cache.incr.assert_called_once()
+        mock_cache.expire.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_redis_rate_limiting_fallback_to_memory(app, mock_logger):
+    """Test Redis middleware falls back to memory when cache fails"""
+    with patch(
+        "fastcore.middleware.rate_limiting.get_cache",
+        side_effect=Exception("Redis down"),
+    ):  # Adjust import
+        middleware = RedisRateLimitMiddleware(
+            app, max_requests=1, window_seconds=60, logger=mock_logger
+        )
+
+        request = Mock(spec=Request)
+        request.client.host = "192.168.1.1"
+        request.method = "GET"
+        request.url.path = "/api/test"
+
+        call_next = AsyncMock(return_value=Response("OK"))
+
+        # First request should work (fallback to memory)
+        response1 = await middleware.dispatch(request, call_next)
+        assert call_next.call_count == 1
+
+        # Second request should be rate limited (memory backend working)
+        response2 = await middleware.dispatch(request, call_next)
+        assert response2.status_code == 429
+
+        # Check error was logged
+        mock_logger.error.assert_called()
+
+
+# Test middleware setup function
+def test_add_rate_limiting_middleware_memory_backend(mock_logger):
+    """Test middleware setup with memory backend"""
+    app = FastAPI()
+    settings = MagicMock()
+    settings.rate_limiting_options = {"max_requests": 100, "window_seconds": 60}
+    settings.rate_limiting_backend = "memory"
+
+    add_rate_limiting_middleware(app, settings, mock_logger)
+
+    # Check middleware was added
+    assert len(app.user_middleware) == 1
+    mock_logger.info.assert_called()
+    mock_logger.debug.assert_called()
+
+
+def test_add_rate_limiting_middleware_redis_backend(mock_logger):
+    """Test middleware setup with Redis backend"""
+    app = FastAPI()
+    settings = MagicMock()
+    settings.rate_limiting_options = {"max_requests": 50, "window_seconds": 30}
+    settings.rate_limiting_backend = "redis"
+
+    add_rate_limiting_middleware(app, settings, mock_logger)
+
+    # Check middleware was added
+    assert len(app.user_middleware) == 1
+    mock_logger.info.assert_called()
+    mock_logger.debug.assert_called()
+
+
+# def test_add_rate_limiting_middleware_with_routes(mock_logger):
+#     """Test middleware setup with route-specific configs"""
+#     app = FastAPI()
+#     settings = MagicMock()
+#     settings.rate_limiting_options = {
+#         "max_requests": 60,
+#         "window_seconds": 60,
+#         "routes": {
+#             "/api/heavy": {"max_requests": 10, "window_seconds": 60},
+#             "POST:/api/users": {"max_requests": 5, "window_seconds": 300},
+#         },
+#     }
+#     settings.rate_limiting_backend = "memory"
+
+#     add_rate_limiting_middleware(app, settings, mock_logger)
+
+#     # Check middleware was added
+#     assert len(app.user_middleware) == 1
+
+#     # Verify log message mentions route configs
+#     call_args = mock_logger.info.call_args[0][0]
+#     # assert "routes={'/api/heavy'" in call_args
+#     assert "backend=memory" in call_args
+#     assert "options=" in call_args
+
+
+def test_add_rate_limiting_middleware_default_settings(mock_logger):
+    """Test middleware setup with default settings"""
+    app = FastAPI()
+    settings = MagicMock()
+
+    add_rate_limiting_middleware(app, settings, mock_logger)
+
+    # Check middleware was added with defaults
+    assert len(app.user_middleware) == 1
+    mock_logger.info.assert_called()
+    mock_logger.debug.assert_called()
+
+
+# Integration-style tests
+@pytest.mark.asyncio
+async def test_end_to_end_rate_limiting_scenario(app, mock_logger):
+    """Test a realistic end-to-end scenario"""
+    routes = {
+        # API endpoints with different limits
+        "POST:/api/login": {
+            "max_requests": 3,
+            "window_seconds": 300,
+        },  # Strict login rate limit
+        "GET:/api/users": {
+            "max_requests": 100,
+            "window_seconds": 60,
+        },  # Generous read limit
+        "/api/heavy-compute": {
+            "max_requests": 2,
+            "window_seconds": 60,
+        },  # Any method, low limit
+        # File serving with high limits
+        "GET:/dzi/{slide_id}_files/{level:int}/{col:int}_{row:int}.jpeg": {
+            "max_requests": 1000,
+            "window_seconds": 60,
+        },
+        # Unlimited endpoint
+        "/health": {"disabled": True},
+    }
+
+    middleware = SimpleRateLimitMiddleware(
+        app, max_requests=50, window_seconds=60, logger=mock_logger, routes=routes
+    )
+
+    call_next = AsyncMock(return_value=Response("OK"))
+
+    # Test login rate limiting (strict)
+    login_request = Mock(spec=Request)
+    login_request.client.host = "192.168.1.1"
+    login_request.method = "POST"
+    login_request.url.path = "/api/login"
+
+    for i in range(3):
+        response = await middleware.dispatch(login_request, call_next)
+        assert response.body.decode() == "OK"
+
+    # 4th login should fail
+    response = await middleware.dispatch(login_request, call_next)
+    assert response.status_code == 429
+
+    # Test health check (unlimited)
+    health_request = Mock(spec=Request)
+    health_request.client.host = "192.168.1.1"
+    health_request.method = "GET"
+    health_request.url.path = "/health"
+
+    # Should work unlimited times
+    for _ in range(10):
+        response = await middleware.dispatch(health_request, call_next)
+        assert response.body.decode() == "OK"
+
+    # Test DZI file serving (high limit, different IP)
+    dzi_request = Mock(spec=Request)
+    dzi_request.client.host = "192.168.1.2"  # Different IP
+    dzi_request.method = "GET"
+    dzi_request.url.path = "/dzi/slide123_files/5/10_20.jpeg"
+
+    # Should handle many requests
+    for _ in range(100):
+        response = await middleware.dispatch(dzi_request, call_next)
+        assert response.body.decode() == "OK"
