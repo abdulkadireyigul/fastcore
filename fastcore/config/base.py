@@ -122,16 +122,13 @@ class BaseAppSettings(BaseSettings):
                 # Method-specific configs
                 # "POST:/api/users": {"max_requests": 10, "window_seconds": 60},
                 # "GET:/api/users": {"max_requests": 100, "window_seconds": 60},
-                
                 # Any method for this endpoint
                 # "/api/heavy-endpoint": {"max_requests": 10, "window_seconds": 60},
-                
                 # Dynamic routes with method
                 # "GET:/dzi/{slide_id}_files/{level:int}/{col:int}_{row:int}.jpeg": {
                 #     "max_requests": 1000,
                 #     "window_seconds": 60,
                 # },
-                
                 # Disable completely for any method
                 # "/api/no-limit": {"disabled": True},
             },
