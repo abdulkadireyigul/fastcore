@@ -9,6 +9,7 @@ Covers:
 
 All tests use mocks to isolate FastAPI app, logger, and cache dependencies.
 """
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -748,3 +749,121 @@ async def test_end_to_end_rate_limiting_scenario(app, mock_logger):
     for _ in range(100):
         response = await middleware.dispatch(dzi_request, call_next)
         assert response.body.decode() == "OK"
+
+
+@pytest.fixture
+def mock_bench_app():
+    """Creates a mock FastAPI application for testing."""
+    app = FastAPI()
+
+    @app.get("/users/{user_id}")
+    async def read_user(user_id: int):
+        return {"user_id": user_id}
+
+    return app
+
+
+@pytest.fixture
+def rate_limit_middleware(mock_bench_app):
+    """Creates a SimpleRateLimitMiddleware instance with route-based configuration."""
+    return SimpleRateLimitMiddleware(
+        mock_bench_app,
+        max_requests=10000,
+        window_seconds=60,
+        logger=MagicMock(),
+        routes={
+            "GET:/users/{user_id}": {"max_requests": 1000, "window_seconds": 60},
+        },
+    )
+
+
+@pytest.fixture
+def redis_rate_limit_middleware(mock_app, mock_redis_cache):
+    """
+    Creates a RedisRateLimitMiddleware instance for benchmarking.
+    """
+    return RedisRateLimitMiddleware(
+        mock_app,
+        max_requests=10000,
+        window_seconds=60,
+        logger=MagicMock(),
+        routes={"GET:/users/{user_id}": {"max_requests": 1000, "window_seconds": 60}},
+    )
+
+
+def test_benchmark_route_config_lookup(benchmark, rate_limit_middleware):
+    """
+    Tests the performance of the cached route configuration lookup.
+    The first call measures a cache miss, while subsequent calls measure a cache hit.
+    """
+
+    # The benchmark fixture should be used only once per function.
+    # We will measure the performance of a sequence of calls within the benchmarked function.
+
+    def run_lookups():
+        # First call: cache miss
+        rate_limit_middleware._get_route_config("GET", "/users/123")
+
+        # Subsequent calls: cache hit
+        rate_limit_middleware._get_route_config("GET", "/users/123")
+        rate_limit_middleware._get_route_config("GET", "/users/456")
+
+        # Another cache miss on a completely new path
+        rate_limit_middleware._get_route_config("GET", "/new-path/789")
+
+    benchmark(run_lookups)
+
+
+@pytest.mark.asyncio
+async def test_benchmark_dispatch_performance(
+    benchmark, mock_bench_app, rate_limit_middleware
+):
+    """
+    Tests the end-to-end performance of the middleware's dispatch method.
+    Measures the time taken to process a request that is not rate-limited.
+    """
+    request = MagicMock()
+    request.method = "GET"
+    request.client.host = "127.0.0.1"
+    request.url.path = "/users/123"
+
+    # We need a simple async function to mock call_next
+    async def mock_call_next(req):
+        return Response(status_code=200)
+
+    # Directly benchmark the async dispatch method.
+    # The benchmark fixture itself handles the async execution.
+    benchmark(rate_limit_middleware.dispatch, request, mock_call_next)
+
+
+@pytest.fixture
+def redis_rate_limit_middleware(mock_bench_app):
+    """
+    Creates a RedisRateLimitMiddleware instance for benchmarking.
+    """
+    return RedisRateLimitMiddleware(
+        mock_bench_app,
+        max_requests=10000,
+        window_seconds=60,
+        logger=MagicMock(),
+        routes={"GET:/users/{user_id}": {"max_requests": 1000, "window_seconds": 60}},
+    )
+
+
+@pytest.mark.asyncio
+async def test_benchmark_redis_dispatch_performance(
+    benchmark, redis_rate_limit_middleware
+):
+    """
+    Benchmarks the end-to-end performance of the Redis rate-limiting middleware.
+    """
+    request = MagicMock()
+    request.method = "GET"
+    request.client.host = "127.0.0.1"
+    request.url.path = "/users/123"
+
+    async def mock_call_next(req):
+        return Response(status_code=200)
+
+    # The benchmark fixture handles the async execution directly.
+    benchmark(redis_rate_limit_middleware.dispatch, request, mock_call_next)
