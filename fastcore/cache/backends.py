@@ -12,6 +12,9 @@ class RedisCache(BaseCache):
     Redis-based cache backend implementation.
     """
 
+    # New: Add a private attribute to store the script SHA
+    _incr_script_sha: Optional[str] = None
+
     def __init__(
         self,
         url: str,
@@ -132,4 +135,47 @@ class RedisCache(BaseCache):
                 self._logger.debug("Redis connection closed")
         except Exception as e:
             self._logger.error(f"Cache close error: {e}")
+            raise
+
+    async def _load_incr_script(self):
+        """Loads and caches the SHA1 hash of the INCR/EXPIRE Lua script."""
+        script = """
+        local count = redis.call('INCR', KEYS[1])
+        if count == 1 then
+          redis.call('EXPIRE', KEYS[1], ARGV[1])
+        end
+        return count
+        """
+        self._incr_script_sha = await self._redis.script_load(script)
+
+    async def incr_with_expire(
+        self, key: str, amount: int = 1, ttl: Optional[int] = None
+    ) -> int:
+        """
+        Atomically increments a key and sets its TTL if it's a new key,
+        using a cached Lua script.
+        """
+        await self._ensure_connection()
+        full_key = f"{self._prefix}{key}"
+
+        # Ensure the script is loaded
+        if self._incr_script_sha is None:
+            await self._load_incr_script()
+
+        expire = ttl if ttl is not None else self._default_ttl
+
+        try:
+            # Execute the Lua script by its SHA
+            count = await self._redis.evalsha(
+                self._incr_script_sha, 1, full_key, expire  # Number of keys
+            )
+            self._logger.debug(f"Atomic incr/expire for key: {full_key} (ttl={expire})")
+            return int(count)
+        except aredis.exceptions.NoScriptError:
+            # Fallback if script is not on server (e.g., after a Redis restart)
+            self._logger.warning("Lua script not found on Redis server, reloading...")
+            await self._load_incr_script()
+            return await self.incr_with_expire(key, amount, ttl)  # Recursive call
+        except Exception as e:
+            self._logger.error(f"Atomic incr/expire error for key {full_key}: {e}")
             raise

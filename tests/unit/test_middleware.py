@@ -148,21 +148,46 @@ async def test_redis_rate_limit_middleware_allows(monkeypatch):
     middleware = RedisRateLimitMiddleware(
         app, max_requests=2, window_seconds=60, logger=logger
     )
-    request = MagicMock()
-    request.client.host = "1.2.3.4"
-    call_next = AsyncMock(return_value="ok")
+    # request = MagicMock()
+    # request.client.host = "1.2.3.4"
+    # call_next = AsyncMock(return_value="ok")
+    # mock_cache = AsyncMock()
+    # mock_cache.incr.side_effect = [1, 2]
+    # mock_cache.expire = AsyncMock()
+    # monkeypatch.setattr(
+    #     "fastcore.middleware.rate_limiting.get_cache",
+    #     AsyncMock(return_value=mock_cache),
+    # )
+    # result = await middleware.dispatch(request, call_next)
+    # assert result == "ok"
+    # result = await middleware.dispatch(request, call_next)
+    # assert result == "ok"
+    # mock_cache.expire.assert_awaited()
+
     mock_cache = AsyncMock()
-    mock_cache.incr.side_effect = [1, 2]
-    mock_cache.expire = AsyncMock()
+    mock_cache.incr_with_expire = AsyncMock(side_effect=[1, 2])
+
     monkeypatch.setattr(
         "fastcore.middleware.rate_limiting.get_cache",
         AsyncMock(return_value=mock_cache),
     )
-    result = await middleware.dispatch(request, call_next)
-    assert result == "ok"
-    result = await middleware.dispatch(request, call_next)
-    assert result == "ok"
-    mock_cache.expire.assert_awaited()
+
+    request = MagicMock()
+    request.client.host = "1.2.3.4"
+    request.method = "GET"
+    request.url.path = "/test"
+
+    call_next = AsyncMock(return_value=Response(content="ok", status_code=200))
+
+    response_1 = await middleware.dispatch(request, call_next)
+    assert response_1.status_code == 200
+    assert response_1.headers["X-RateLimit-Remaining"] == "1"
+
+    response_2 = await middleware.dispatch(request, call_next)
+    assert response_2.status_code == 200
+    assert response_2.headers["X-RateLimit-Remaining"] == "0"
+
+    mock_cache.incr_with_expire.assert_called()
 
 
 @pytest.mark.asyncio
@@ -172,20 +197,42 @@ async def test_redis_rate_limit_middleware_blocks(monkeypatch):
     middleware = RedisRateLimitMiddleware(
         app, max_requests=1, window_seconds=60, logger=logger
     )
-    request = MagicMock()
-    request.client.host = "1.2.3.4"
-    call_next = AsyncMock(return_value="ok")
+    # request = MagicMock()
+    # request.client.host = "1.2.3.4"
+    # call_next = AsyncMock(return_value="ok")
+    # mock_cache = AsyncMock()
+    # mock_cache.incr.side_effect = [1, 2]
+    # mock_cache.expire = AsyncMock()
+    # monkeypatch.setattr(
+    #     "fastcore.middleware.rate_limiting.get_cache",
+    #     AsyncMock(return_value=mock_cache),
+    # )
+    # await middleware.dispatch(request, call_next)
+    # resp = await middleware.dispatch(request, call_next)
+    # assert resp.status_code == 429
+    # logger.warning.assert_called()
+
     mock_cache = AsyncMock()
-    mock_cache.incr.side_effect = [1, 2]
-    mock_cache.expire = AsyncMock()
+    mock_cache.incr_with_expire = AsyncMock(side_effect=[1, 2])
+
     monkeypatch.setattr(
         "fastcore.middleware.rate_limiting.get_cache",
         AsyncMock(return_value=mock_cache),
     )
+
+    request = MagicMock()
+    request.client.host = "1.2.3.4"
+    request.method = "GET"
+    request.url.path = "/test"
+    call_next = AsyncMock(return_value=Response(content="ok", status_code=200))
+
     await middleware.dispatch(request, call_next)
+
     resp = await middleware.dispatch(request, call_next)
+
     assert resp.status_code == 429
     logger.warning.assert_called()
+    assert "X-RateLimit-Limit" in resp.headers
 
 
 from unittest.mock import AsyncMock, Mock, patch
@@ -557,8 +604,9 @@ async def test_dynamic_route_matching(app, mock_logger):
 async def test_redis_rate_limiting_success(app, mock_logger):
     """Test Redis-based rate limiting when cache works"""
     mock_cache = AsyncMock()
-    mock_cache.incr.return_value = 1
-    mock_cache.expire = AsyncMock()
+    # mock_cache.incr.return_value = 1
+    mock_cache.incr_with_expire = AsyncMock(return_value=1)
+    # mock_cache.expire = AsyncMock()
 
     with patch(
         "fastcore.middleware.rate_limiting.get_cache", return_value=mock_cache
@@ -572,13 +620,20 @@ async def test_redis_rate_limiting_success(app, mock_logger):
         request.method = "GET"
         request.url.path = "/api/test"
 
-        call_next = AsyncMock(return_value=Response("OK"))
+        # call_next = AsyncMock(return_value=Response("OK"))
+        call_next = AsyncMock(return_value=Response("OK", status_code=200))
 
         response = await middleware.dispatch(request, call_next)
 
+        # assert call_next.call_count == 1
+        # mock_cache.incr.assert_called_once()
+        # mock_cache.expire.assert_called_once()
+
+        assert response.status_code == 200
         assert call_next.call_count == 1
-        mock_cache.incr.assert_called_once()
-        mock_cache.expire.assert_called_once()
+
+        mock_cache.incr_with_expire.assert_called_once()
+        assert "X-RateLimit-Limit" in response.headers
 
 
 @pytest.mark.asyncio

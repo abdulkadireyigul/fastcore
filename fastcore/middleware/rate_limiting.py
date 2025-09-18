@@ -161,7 +161,15 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
                 self.logger.warning(
                     f"Rate limit exceeded for IP {ip} on {method} {path} ({backend_name} backend): {count}/{max_requests} requests in window {window}."
                 )
-                return Response("Too Many Requests", status_code=429)
+
+                # Add headers to the 429 response before returning
+                headers = {
+                    "X-RateLimit-Limit": str(max_requests),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": str((window + 1) * window_seconds),
+                }
+
+                return Response("Too Many Requests", status_code=429, headers=headers)
 
             # return await call_next(request)
 
@@ -295,9 +303,13 @@ class RedisRateLimitMiddleware(BaseRateLimitMiddleware):
     async def _get_count(self, key: str, window_seconds: int) -> int:
         try:
             cache = await get_cache()
-            count = await cache.incr(key)
-            if count == 1:
-                await cache.expire(key, window_seconds + 10)
+            # count = await cache.incr(key)
+            # if count == 1:
+            #     await cache.expire(key, window_seconds + 10)
+
+            # Use the new atomic incr_with_expire method
+            count = await cache.incr_with_expire(key, ttl=window_seconds + 10)
+
             return count
         except Exception as e:
             self.logger.error(
