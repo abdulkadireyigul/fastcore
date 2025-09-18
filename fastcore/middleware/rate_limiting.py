@@ -287,6 +287,7 @@ class RedisRateLimitMiddleware(BaseRateLimitMiddleware):
         self, app, max_requests=60, window_seconds=60, routes=None, logger=None
     ):
         super().__init__(app, max_requests, window_seconds, logger, routes)
+        self.cache = None
         self._memory_fallback = SimpleRateLimitMiddleware(
             self.app,
             max_requests=self.max_requests,
@@ -302,13 +303,15 @@ class RedisRateLimitMiddleware(BaseRateLimitMiddleware):
 
     async def _get_count(self, key: str, window_seconds: int) -> int:
         try:
-            cache = await get_cache()
+            if self.cache is None:
+                self.cache = await get_cache()
+            # cache = await get_cache()
             # count = await cache.incr(key)
             # if count == 1:
             #     await cache.expire(key, window_seconds + 10)
 
             # Use the new atomic incr_with_expire method
-            count = await cache.incr_with_expire(key, ttl=window_seconds + 10)
+            count = await self.cache.incr_with_expire(key, ttl=window_seconds + 10)
 
             return count
         except Exception as e:
