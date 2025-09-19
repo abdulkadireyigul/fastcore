@@ -327,7 +327,9 @@ def test_exact_path_match(app, mock_logger):
     routes = {"/api/users": {"max_requests": 10, "window_seconds": 60}}
     middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
 
-    max_req, window, disabled = middleware._get_route_config("GET", "/api/users")
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
+        "GET", "/api/users"
+    )
     assert max_req == 10
     assert window == 60
     assert disabled == False
@@ -342,12 +344,16 @@ def test_method_specific_match(app, mock_logger):
     middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
 
     # Test POST
-    max_req, window, disabled = middleware._get_route_config("POST", "/api/users")
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
+        "POST", "/api/users"
+    )
     assert max_req == 5
     assert window == 300
 
     # Test GET
-    max_req, window, disabled = middleware._get_route_config("GET", "/api/users")
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
+        "GET", "/api/users"
+    )
     assert max_req == 100
     assert window == 60
 
@@ -361,12 +367,16 @@ def test_method_priority_over_general(app, mock_logger):
     middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
 
     # POST should use method-specific config
-    max_req, window, disabled = middleware._get_route_config("POST", "/api/users")
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
+        "POST", "/api/users"
+    )
     assert max_req == 5
     assert window == 300
 
     # GET should use general config
-    max_req, window, disabled = middleware._get_route_config("GET", "/api/users")
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
+        "GET", "/api/users"
+    )
     assert max_req == 50
     assert window == 60
 
@@ -376,7 +386,9 @@ def test_regex_pattern_matching(app, mock_logger):
     routes = {"/api/users/{user_id:int}": {"max_requests": 20, "window_seconds": 60}}
     middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
 
-    max_req, window, disabled = middleware._get_route_config("GET", "/api/users/123")
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
+        "GET", "/api/users/123"
+    )
     assert max_req == 20
     assert window == 60
 
@@ -392,14 +404,14 @@ def test_method_regex_pattern_matching(app, mock_logger):
     middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
 
     # Should match GET request
-    max_req, window, disabled = middleware._get_route_config(
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
         "GET", "/dzi/slide123_files/5/10_20.jpeg"
     )
     assert max_req == 1000
     assert window == 60
 
     # Should not match POST request (use defaults)
-    max_req, window, disabled = middleware._get_route_config(
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
         "POST", "/dzi/slide123_files/5/10_20.jpeg"
     )
     assert max_req == 60  # default
@@ -411,7 +423,9 @@ def test_disabled_route(app, mock_logger):
     routes = {"/api/no-limit": {"disabled": True}}
     middleware = SimpleRateLimitMiddleware(app, logger=mock_logger, routes=routes)
 
-    max_req, window, disabled = middleware._get_route_config("GET", "/api/no-limit")
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
+        "GET", "/api/no-limit"
+    )
     assert disabled == True
 
 
@@ -423,7 +437,9 @@ def test_default_config_fallback(app, mock_logger):
     )
 
     # Non-matching route should use defaults
-    max_req, window, disabled = middleware._get_route_config("GET", "/api/other")
+    matched_pattern, max_req, window, disabled = middleware._get_route_config(
+        "GET", "/api/other"
+    )
     assert max_req == 100
     assert window == 120
     assert disabled == False

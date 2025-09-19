@@ -85,7 +85,7 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
         return f"^{pattern}$"
 
     @lru_cache(maxsize=1024)
-    def _get_route_config(self, method: str, path: str) -> Tuple[int, int, bool]:
+    def _get_route_config(self, method: str, path: str) -> Tuple[str, int, int, bool]:
         """
         Cached route config lookup to avoid repeated pattern matching.
         LRU cache will store the 1024 most recently used method+path combinations.
@@ -95,6 +95,7 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
         if method_path in self._method_exact_routes:
             config = self._method_exact_routes[method_path]
             return (
+                method_path,
                 config.get("max_requests", self.max_requests),
                 config.get("window_seconds", self.window_seconds),
                 config.get("disabled", False),
@@ -104,6 +105,7 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
         if path in self._exact_routes:
             config = self._exact_routes[path]
             return (
+                path,
                 config.get("max_requests", self.max_requests),
                 config.get("window_seconds", self.window_seconds),
                 config.get("disabled", False),
@@ -116,14 +118,25 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
                 continue
 
             if compiled_regex.match(path):
+                # return (
+                #     config.get("max_requests", self.max_requests),
+                #     config.get("window_seconds", self.window_seconds),
+                #     config.get("disabled", False),
+                # )
+
+                matched_pattern = pattern_method + ":" if pattern_method else ""
+                matched_pattern += (
+                    compiled_regex.pattern
+                )  # Use the original pattern string
                 return (
+                    matched_pattern,
                     config.get("max_requests", self.max_requests),
                     config.get("window_seconds", self.window_seconds),
                     config.get("disabled", False),
                 )
 
         # Return default config
-        return self.max_requests, self.window_seconds, False
+        return "default", self.max_requests, self.window_seconds, False
 
     async def _get_count(self, key: str, window_seconds: int) -> int:
         """Abstract method: Increments the counter based on the backend."""
@@ -134,9 +147,12 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
             # Get route-specific configuration
             method = request.method
             path = request.url.path
-            max_requests, window_seconds, disabled = self._get_route_config(
-                method, path
-            )
+            (
+                matched_pattern,
+                max_requests,
+                window_seconds,
+                disabled,
+            ) = self._get_route_config(method, path)
 
             # Skip rate limiting if disabled for this route
             if disabled:
@@ -149,10 +165,11 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
 
             # Simplified key structure for better performance
             # Use hash of path for dynamic routes to avoid key explosion
-            path_key = str(
-                hash(f"{method}:{path}") % 10000
-            )  # Bucket paths into 10000 groups
-            key = f"rl:{ip}:{path_key}:{window}"
+            # path_key = str(
+            #     hash(f"{method}:{path}") % 10000
+            # )  # Bucket paths into 10000 groups
+            # key = f"rl:{ip}:{path_key}:{window}"
+            key = f"rl:{ip}:{hash(matched_pattern)}:{window}"
 
             count = await self._get_count(key, window_seconds)
 
