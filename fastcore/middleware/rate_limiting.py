@@ -65,7 +65,10 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
                     self._dynamic_patterns.append((method, compiled, config))
                 else:
                     # Exact method:path match
-                    self._method_exact_routes[f"{method}:{path_pattern}"] = config
+                    normalized_path = path_pattern.rstrip("/")
+                    self._method_exact_routes[f"{method}:{normalized_path}"] = config
+                    # Also add the trailing slash version for convenience
+                    self._method_exact_routes[f"{method}:{normalized_path}/"] = config
             else:
                 # Check if it's a dynamic route
                 if "{" in pattern:
@@ -74,15 +77,31 @@ class BaseRateLimitMiddleware(BaseHTTPMiddleware):
                     self._dynamic_patterns.append((None, compiled, config))
                 else:
                     # Exact path match (any method)
+                    normalized_path = pattern.rstrip("/")
                     self._exact_routes[pattern] = config
+                    # Also add the trailing slash version for convenience
+                    self._exact_routes[f"{pattern}/"] = config
 
     def _fastapi_to_regex(self, pattern: str) -> str:
-        """Convert FastAPI path pattern to regex pattern."""
-        pattern = re.sub(r"\{[^}]+:int\}", r"(\\d+)", pattern)
+        """
+        Convert FastAPI path pattern to regex pattern,
+        handling both trailing and non-trailing slashes.
+        """
+        # Step 1: Normalize the pattern to not have a trailing slash
+        # e.g. "/users/" -> "/users"
+        normalized_pattern = pattern.rstrip("/")
+
+        # Step 1: Replace path parameters with regex groups
+        pattern = re.sub(r"\{[^}]+:int\}", r"(\\d+)", normalized_pattern)
         pattern = re.sub(r"\{[^}]+:float\}", r"([\\d.]+)", pattern)
         pattern = re.sub(r"\{[^}]+\}", r"([^/]+)", pattern)
+
+        # Step 2: Escape literal dots
         pattern = pattern.replace(".", "\\.")
-        return f"^{pattern}$"
+
+        # Step 3: Handle the optional trailing slash
+        # This ensures /users and /users/ both match the same route.
+        return f"^{pattern}/?$"
 
     @lru_cache(maxsize=1024)
     def _get_route_config(self, method: str, path: str) -> Tuple[str, int, int, bool]:

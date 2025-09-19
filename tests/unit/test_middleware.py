@@ -291,7 +291,7 @@ def test_fastapi_to_regex_simple_path(app, mock_logger):
     """Test regex conversion for simple paths"""
     middleware = SimpleRateLimitMiddleware(app, logger=mock_logger)
     result = middleware._fastapi_to_regex("/api/users")
-    assert result == "^/api/users$"
+    assert result == "^/api/users/?$"
 
 
 def test_fastapi_to_regex_with_params(app, mock_logger):
@@ -300,15 +300,15 @@ def test_fastapi_to_regex_with_params(app, mock_logger):
 
     # Test string parameter
     result = middleware._fastapi_to_regex("/api/users/{user_id}")
-    assert result == "^/api/users/([^/]+)$"
+    assert result == "^/api/users/([^/]+)/?$"
 
     # Test int parameter
     result = middleware._fastapi_to_regex("/api/users/{user_id:int}")
-    assert result == "^/api/users/(\\d+)$"
+    assert result == "^/api/users/(\\d+)/?$"
 
     # Test float parameter
     result = middleware._fastapi_to_regex("/api/users/{price:float}")
-    assert result == "^/api/users/([\\d\\.]+)$"
+    assert result == "^/api/users/([\\d\\.]+)/?$"
 
 
 def test_fastapi_to_regex_complex_path(app, mock_logger):
@@ -317,7 +317,7 @@ def test_fastapi_to_regex_complex_path(app, mock_logger):
     result = middleware._fastapi_to_regex(
         "/dzi/{slide_id}_files/{level:int}/{col:int}_{row:int}.jpeg"
     )
-    expected = "^/dzi/([^/]+)_files/(\\d+)/(\\d+)_(\\d+)\\.jpeg$"
+    expected = "^/dzi/([^/]+)_files/(\\d+)/(\\d+)_(\\d+)\\.jpeg/?$"
     assert result == expected
 
 
