@@ -249,4 +249,4 @@ class BaseAppSettings(BaseSettings):
             # Add more checks for other async drivers if needed
         return value
 
-    model_config = ConfigDict(env_file=".env", case_sensitive=True)
+    model_config = ConfigDict(env_file=".env", case_sensitive=True, extra="allow")
