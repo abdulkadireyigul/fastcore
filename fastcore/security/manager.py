@@ -28,6 +28,8 @@ logger = ensure_logger(None, __name__)
 # Global security state flag
 security_initialized = False
 
+security_settings: Optional[BaseAppSettings] = None
+
 
 def setup_security(
     app: FastAPI,
@@ -55,19 +57,23 @@ def setup_security(
         logger: Optional logger instance
     """
     global security_initialized
-    log = ensure_logger(logger, __name__, settings)
+    global security_settings
+    security_settings = settings
+    log = ensure_logger(logger, __name__, security_settings)
 
     async def on_startup():
         global security_initialized
+        global security_settings
+        security_settings = settings
         log.info("Initializing security module")
 
         # Log security configuration
         log.info(
-            f"JWT token lifetime: {settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES} minutes"
+            f"JWT token lifetime: {security_settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES} minutes"
         )
-        log.info(f"JWT algorithm: {settings.JWT_ALGORITHM}")
+        log.info(f"JWT algorithm: {security_settings.JWT_ALGORITHM}")
         log.info(
-            f"JWT refresh token lifetime: {settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS} days"
+            f"JWT refresh token lifetime: {security_settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS} days"
         )
 
         security_initialized = True
@@ -75,6 +81,8 @@ def setup_security(
 
     async def on_shutdown():
         global security_initialized
+        global security_settings
+        security_settings = None
         log.info("Shutting down security module")
         security_initialized = False
 
@@ -95,3 +103,22 @@ def get_security_status() -> bool:
     if not security_initialized:
         raise RuntimeError("Security module not initialized")
     return security_initialized
+
+
+def get_security_settings() -> BaseAppSettings:
+    """
+    Get the current security settings.
+
+    Returns:
+        BaseAppSettings: The security settings
+
+    Raises:
+        RuntimeError: If the security module is not initialized
+    """
+    global security_settings
+    if security_settings is not None:
+        return security_settings
+
+    from fastcore.config import settings
+
+    return settings

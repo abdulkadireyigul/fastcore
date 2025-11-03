@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastcore.config import get_settings
+# from fastcore.config import get_settings
 from fastcore.errors.exceptions import (
     DBError,
     ExpiredTokenError,
@@ -29,6 +29,7 @@ from fastcore.errors.exceptions import (
 )
 from fastcore.logging.manager import ensure_logger
 from fastcore.schemas.response.token import TokenResponse
+from fastcore.security.manager import get_security_settings
 from fastcore.security.tokens.models import Token, TokenType
 from fastcore.security.tokens.repository import TokenRepository
 
@@ -43,7 +44,7 @@ async def create_token(
     token_type: TokenType = TokenType.ACCESS,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
-    settings = get_settings()
+    settings = get_security_settings()
     token_id = str(uuid.uuid4())
     to_encode = data.copy()
     to_encode.update(
@@ -118,7 +119,7 @@ async def create_token_pair(
         access_expires_at = datetime.fromtimestamp(access_expires_at, tz=timezone.utc)
     else:
         access_expires_at = datetime.now(timezone.utc) + timedelta(
-            minutes=get_settings().JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+            minutes=get_security_settings().JWT_ACCESS_TOKEN_EXPIRE_MINUTES
         )
     access_expires_delta = access_expires_at - datetime.now(timezone.utc)
 
@@ -130,7 +131,7 @@ async def create_token_pair(
         refresh_expires_at = datetime.fromtimestamp(refresh_expires_at, tz=timezone.utc)
     else:
         refresh_expires_at = datetime.now(timezone.utc) + timedelta(
-            days=get_settings().JWT_REFRESH_TOKEN_EXPIRE_DAYS
+            days=get_security_settings().JWT_REFRESH_TOKEN_EXPIRE_DAYS
         )
     refresh_expires_delta = refresh_expires_at - datetime.now(timezone.utc)
 
