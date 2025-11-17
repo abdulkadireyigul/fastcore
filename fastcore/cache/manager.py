@@ -1,4 +1,4 @@
-import sys
+import logging
 from typing import Optional
 
 from fastapi import FastAPI
@@ -8,23 +8,29 @@ from fastcore.cache.base import BaseCache
 from fastcore.config.base import BaseAppSettings
 from fastcore.logging import Logger, ensure_logger
 
-# Module-level cache instance
+# Global cache instance
 cache: Optional[BaseCache] = None
 
 
-async def get_cache() -> Optional[BaseCache]:
+async def get_cache() -> BaseCache:
     """
-    FastAPI dependency for retrieving the cache instance.
+    FastAPI dependency for retrieving the global cache instance.
 
-    Only Redis backend is supported. Only async cache operations are available.
-    Raises RuntimeError if cache is not initialized (e.g., Redis unavailable).
+    This function ensures that the cache is initialized before use.
+    If the cache is not available (e.g., Redis connection failed during startup),
+    it raises a RuntimeError. This allows decorators/callers to handle the
+    failure (e.g., fail-silent fallback).
+
+    Returns:
+        BaseCache: The initialized cache instance.
+
+    Raises:
+        RuntimeError: If the cache has not been initialized.
     """
-    manager_mod = sys.modules.get("fastcore.cache.manager")
-    cache_instance = getattr(manager_mod, "cache", None)
-    if cache_instance is None:
+    if cache is None:
         raise RuntimeError("Cache not initialized")
 
-    return cache_instance
+    return cache
 
 
 def setup_cache(
@@ -33,36 +39,63 @@ def setup_cache(
     logger: Optional[Logger] = None,
 ) -> None:
     """
-    Configure cache lifecycle for FastAPI application.
+    Configure the cache lifecycle for the FastAPI application.
 
-    - On startup: initialize RedisCache (async only)
-    - On shutdown: close Redis connection
-    - Provides get_cache dependency
+    Registers startup and shutdown event handlers to initialize and close
+    the Redis connection automatically.
 
-    Limitations:
-    - Only Redis backend is supported (no in-memory fallback)
-    - Only async cache operations are available
-    - No fallback if Redis is unavailable
+    Args:
+        app: The FastAPI application instance.
+        settings: Application settings containing CACHE_URL, TTL, etc.
+        logger: Optional logger instance. If None, a new one is configured.
     """
-    log = ensure_logger(logger, __name__, settings)
+    # Initialize logger using the fastcore utility
+    log: logging.Logger = ensure_logger(logger, __name__, settings)  # type: ignore
+
     url = settings.CACHE_URL
     ttl = settings.CACHE_DEFAULT_TTL
     prefix = settings.CACHE_KEY_PREFIX or ""
 
-    async def init_cache():
+    async def init_cache() -> None:
+        """Startup event handler: Initialize Redis connection."""
         global cache
+        if cache is not None:
+            return
+
         try:
-            cache = RedisCache(url=url, default_ttl=ttl, prefix=prefix, logger=log)
-            await cache.init()
-            log.info(f"RedisCache initialized (url={url})")
+            # Create and initialize the RedisBackend
+            cache_instance = RedisCache(
+                url=url, default_ttl=ttl, prefix=prefix, logger=log
+            )
+            await cache_instance.init()
+
+            # Update global state
+            cache = cache_instance
+
+            # Attach to app state for easy access via request.app.state.cache
+            app.state.cache = cache_instance
+
+            log.info(f"RedisCache initialized successfully (url={url})")
         except Exception as e:
+            # Fail-Silent Initialization:
+            # If Redis fails, we log the error but do not crash the app startup.
+            # The get_cache dependency will raise RuntimeError, which decorators can handle.
             cache = None
             log.error(f"RedisCache initialization failed: {e}")
 
-    async def shutdown_cache():
+    async def shutdown_cache() -> None:
+        """Shutdown event handler: Close Redis connection."""
+        global cache
         if cache:
-            await cache.close()
-            log.info("RedisCache closed")
+            try:
+                if hasattr(cache, "close"):
+                    await cache.close()  # type: ignore
+                log.info("RedisCache connection closed")
+            except Exception as e:
+                log.error(f"Error closing RedisCache: {e}")
+            finally:
+                cache = None
 
+    # Register lifecycle handlers
     app.add_event_handler("startup", init_cache)
     app.add_event_handler("shutdown", shutdown_cache)

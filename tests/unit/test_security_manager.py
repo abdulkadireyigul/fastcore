@@ -72,13 +72,13 @@ def test_setup_security_with_custom_settings():
     Test that setup_security properly uses custom settings passed to it.
     """
     app = FastAPI()
-    
+
     # Create custom settings with unique values we can verify
     class CustomSettings(BaseAppSettings):
         APP_NAME: str = "CustomApp"
         APP_ENV: str = "testing"
         DATABASE_URL: str = "sqlite:///./custom.db"
-        
+
         # Custom JWT settings different from defaults
         JWT_SECRET_KEY: str = "custom-secret-key"
         JWT_ALGORITHM: str = "HS512"  # Different from default HS256
@@ -88,13 +88,13 @@ def test_setup_security_with_custom_settings():
         JWT_ISSUER: Optional[str] = "custom-issuer"
 
     custom_settings = CustomSettings()
-    
+
     # Setup security with our custom settings
     manager.setup_security(app, custom_settings)
-    
+
     # Get the settings currently being used by security module
     current_settings = manager.get_security_settings()
-    
+
     # Verify that security module is using our custom values
     assert current_settings.JWT_SECRET_KEY == "custom-secret-key"
     assert current_settings.JWT_ALGORITHM == "HS512"
