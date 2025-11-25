@@ -8,12 +8,8 @@ It handles basic application configuration like app name, debug mode, and versio
 import secrets
 from typing import List, Optional
 
-from pydantic import ConfigDict, Field, field_validator
-from pydantic_settings import BaseSettings
-
-# from src.logging import ensure_logger
-
-# logger = ensure_logger(None, __name__, None)
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class BaseAppSettings(BaseSettings):
@@ -28,6 +24,8 @@ class BaseAppSettings(BaseSettings):
         APP_ENV: The environment variable of the application
         DEBUG: Flag to enable/disable debug mode
         VERSION: Application version string
+        LOG_LEVEL: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        LOG_JSON_FORMAT: Enable JSON formatting for logs (Recommended for production/Loki)
         CACHE_URL: Redis connection URL for caching
         CACHE_DEFAULT_TTL: Default cache TTL in seconds
         CACHE_KEY_PREFIX: Optional prefix for cache keys
@@ -56,6 +54,15 @@ class BaseAppSettings(BaseSettings):
     DEBUG: bool = Field(default=False)
     VERSION: str = Field(default="0.1.0")
 
+    LOG_LEVEL: Optional[str] = Field(
+        default="INFO",
+        description="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+    )
+    LOG_JSON_FORMAT: Optional[bool] = Field(
+        default=False,
+        description="Enable JSON formatting for logs (Recommended for production/Loki)",
+    )
+
     # Cache configuration
     CACHE_URL: str = Field(
         default="redis://localhost:6379/0",
@@ -69,7 +76,9 @@ class BaseAppSettings(BaseSettings):
     )
 
     # Database configuration
-    DATABASE_URL: str = Field(default=None, description="Database connection URL")
+    DATABASE_URL: Optional[str] = Field(
+        default=None, description="Database connection URL"
+    )
     ALEMBIC_DATABASE_URL: Optional[str] = Field(
         default=None,
         description="Synchronous database URL for Alembic migrations (e.g., postgresql://...)",
@@ -249,4 +258,6 @@ class BaseAppSettings(BaseSettings):
             # Add more checks for other async drivers if needed
         return value
 
-    model_config = ConfigDict(env_file=".env", case_sensitive=True, extra="allow")
+    model_config = SettingsConfigDict(
+        env_file=".env", case_sensitive=True, extra="allow"
+    )

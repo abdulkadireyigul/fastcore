@@ -54,6 +54,8 @@ def mock_settings():
     settings.CACHE_URL = "redis://localhost:6379/0"
     settings.CACHE_DEFAULT_TTL = 300
     settings.CACHE_KEY_PREFIX = "test:"
+    settings.LOG_LEVEL = "INFO"
+    settings.LOG_JSON_FORMAT = False
     return settings
 
 
@@ -148,6 +150,9 @@ async def test_setup_cache_empty_prefix(mock_app):
     settings.CACHE_DEFAULT_TTL = 300
     # None prefix geldiğinde "" (boş string) olarak işlemeli
     settings.CACHE_KEY_PREFIX = None
+
+    settings.LOG_LEVEL = "INFO"
+    settings.LOG_JSON_FORMAT = False
 
     with patch("fastcore.cache.manager.RedisCache") as mock_redis_cache:
         mock_instance = AsyncMock()
