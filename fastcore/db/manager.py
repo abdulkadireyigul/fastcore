@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import fastcore.db.engine as db_engine
 from fastcore.config.base import BaseAppSettings
 from fastcore.db.engine import init_db, shutdown_db
-from fastcore.errors.exceptions import DBError
+from fastcore.errors.exceptions import AppError, DBError
 from fastcore.logging import Logger, ensure_logger
 
 
@@ -64,7 +64,11 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         except HTTPException as e:
             await session.rollback()
             log.error(f"Database session error (HTTPException): {e!r}")
-            raise
+            raise e
+        except AppError as e:
+            await session.rollback()
+            log.error(f"Application error during db session: {e!r}")
+            raise e
         except Exception as e:
             await session.rollback()
             log.error(f"Database session error: {e!r}")
