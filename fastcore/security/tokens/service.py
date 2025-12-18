@@ -34,6 +34,20 @@ class _LegacyTokenService(BaseTokenService[Token]):
     def __init__(self):
         super().__init__(model_cls=Token, repo_cls=TokenRepository)
 
+    def _cast_user_id(self, user_id: Any) -> Any:
+        """
+        Override to enforce Integer IDs for legacy systems.
+
+        The JWT 'sub' claim is always a string. This method converts it back
+        to an integer to match the DB schema.
+        """
+        try:
+            return int(user_id)
+        except (ValueError, TypeError):
+            # If it can't be cast (e.g., already None or bad data),
+            # return as is and let the DB driver raise the error naturally.
+            return user_id
+
 
 # Singleton instance to handle functional API calls
 _service_impl = _LegacyTokenService()

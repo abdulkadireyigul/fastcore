@@ -62,6 +62,15 @@ class BaseTokenService(Generic[ModelT]):
         self.model_cls = model_cls
         self.repo_cls = repo_cls
 
+    def _cast_user_id(self, user_id: Any) -> Any:
+        """
+        Hook method to cast user_id to the correct type for the database.
+
+        By default, it returns the value as-is (suitable for UUID/String IDs).
+        Legacy implementations should override this to cast to Integer.
+        """
+        return user_id
+
     async def _create_token_impl(
         self,
         data: Dict[str, Any],
@@ -88,8 +97,8 @@ class BaseTokenService(Generic[ModelT]):
             DBError: If persistence fails.
         """
         # 1. Input Validation
-        user_id = data.get("sub")
-        if user_id is None:
+        raw_user_id = data.get("sub")
+        if raw_user_id is None:
             raise ValueError("Subject (sub) claim is missing in token data")
 
         # 2. Configuration & Defaults
@@ -126,19 +135,21 @@ class BaseTokenService(Generic[ModelT]):
 
         # 5. Persistence
         try:
+            db_user_id = self._cast_user_id(raw_user_id)
+
             # Instantiate the repository dynamically
             repo = self.repo_cls(self.model_cls, session=session)
             await repo.create(
                 {
                     "token_id": token_id,
-                    "user_id": user_id,  # Int or Str is handled by the specific DB driver
+                    "user_id": db_user_id,  # Int or Str is handled by the specific DB driver
                     "token_type": token_type,
                     "expires_at": expire,
                 }
             )
             await session.commit()
 
-            logger.info(f"Created {token_type} token {token_id} for user {user_id}")  # type: ignore
+            logger.info(f"Created {token_type} token {token_id} for user {db_user_id}")  # type: ignore
 
         except Exception as e:
             await session.rollback()
@@ -318,12 +329,14 @@ class BaseTokenService(Generic[ModelT]):
         try:
             payload = decode_token(token)
             token_id = payload.get("jti")
-            user_id = payload.get("sub")
+            raw_user_id = payload.get("sub")
 
-            if not token_id or not user_id:
+            if not token_id or not raw_user_id:
                 raise InvalidTokenError(
                     message="Token missing required claims (jti or sub)"
                 )
+
+            db_user_id = self._cast_user_id(raw_user_id)
 
             repo = self.repo_cls(self.model_cls, session=session)
             token_record = await repo.get_by_token_id(token_id)  # type: ignore
@@ -337,7 +350,7 @@ class BaseTokenService(Generic[ModelT]):
                 logger.info(f"Token {token_id} already revoked")  # type: ignore
                 return
 
-            await repo.revoke_token_for_user(user_id, token_id)  # type: ignore
+            await repo.revoke_token_for_user(db_user_id, token_id)  # type: ignore
             await session.commit()
             logger.info(f"Successfully revoked token {token_id}")  # type: ignore
 
@@ -355,10 +368,11 @@ class BaseTokenService(Generic[ModelT]):
         Internal implementation to revoke all tokens for a user.
         """
         try:
+            db_user_id = self._cast_user_id(user_id)
             repo = self.repo_cls(self.model_cls, session=session)
-            await repo.revoke_all_for_user(user_id)  # type: ignore
+            await repo.revoke_all_for_user(db_user_id)  # type: ignore
             await session.commit()
-            logger.info(f"Revoked all tokens for user {user_id}")  # type: ignore
+            logger.info(f"Revoked all tokens for user {db_user_id}")  # type: ignore
         except Exception as e:
             await session.rollback()
             logger.error(f"Error revoking all tokens for user {user_id}: {e}")  # type: ignore
