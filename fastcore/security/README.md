@@ -1,6 +1,8 @@
 # Security Module
 
-This module provides stateful authentication and authorization utilities for FastAPI applications, including JWT-based authentication, password hashing, user authentication interfaces, and robust token management with support for both header-based and cookie-based authentication.
+This module provides stateful authentication and authorization utilities for FastAPI applications, including JWT-based authentication, password hashing, user authentication interfaces, and robust token management with support for both **header-based** and **cookie-based** authentication.
+
+It is designed to be flexible, supporting both **Legacy (Integer ID)** and **Modern (UUID)** user identification systems.
 
 ## Structure
 
@@ -8,10 +10,11 @@ This module provides stateful authentication and authorization utilities for Fas
 - `exceptions.py`: Custom exception classes for token and authentication errors.
 - `manager.py`: Security module setup and status management for FastAPI apps.
 - `password.py`: Password hashing and verification utilities using bcrypt.
-- `users.py`: Protocols and base classes for user authentication, supporting custom user models.
+- `users.py`: Protocols and base classes for user authentication (Integer & UUID).
 - `tokens/`: Subpackage for all token-related logic:
-  - `models.py`: Token and TokenType SQLAlchemy models.
-  - `repository.py`: TokenRepository for database operations on tokens.
+  - `uuid/`: **NEW** Specialized subpackage for UUID-based token operations (Service, Repository, Models).
+  - `models.py`: Legacy Token and TokenType SQLAlchemy models.
+  - `repository.py`: Legacy TokenRepository for database operations on tokens.
   - `service.py`: Business logic for token creation, validation, revocation, and refresh.
   - `utils.py`: Stateless JWT helpers (encode, decode, stateless validation).
 
@@ -21,7 +24,7 @@ All main security functions, models, helpers, and exceptions are re-exported fro
 
 - Token management: `create_access_token`, `create_refresh_token`, `create_token_pair`, `validate_token`, `refresh_access_token`, `revoke_token`, `decode_token`, `encode_jwt`, `validate_jwt_stateless`, `TokenRepository`, `TokenType`
 - Password utilities: `get_password_hash`, `verify_password`
-- User authentication: `UserAuthentication`, `BaseUserAuthentication`, `AuthenticationError`
+- User authentication: `UserAuthentication`, `BaseUserAuthentication`, `BaseUUIDUserAuthentication`, `AuthenticationError`
 - FastAPI dependencies (Header-based): `get_token_data`, `get_current_user_dependency`, `get_refresh_token_data`, `refresh_token`, `logout_user`
 - FastAPI dependencies (Cookie-based): `get_token_data_from_cookie`, `get_current_user_from_cookie_dependency`, `logout_user_cookie`, `set_auth_cookies`
 - Security setup: `setup_security`, `get_security_status`
@@ -32,9 +35,11 @@ All main security functions, models, helpers, and exceptions are re-exported fro
 The module supports two authentication methods:
 
 ### 1. Header-based Authentication (Bearer Token)
+
 Traditional JWT authentication using the `Authorization: Bearer <token>` header.
 
 ### 2. Cookie-based Authentication (HTTP-only Cookies)
+
 Secure authentication using HTTP-only cookies, ideal for web applications to prevent XSS attacks.
 
 ## Usage Examples
@@ -104,22 +109,22 @@ async def login(
 ):
     # Authenticate user (your implementation)
     user = await authenticate_user(credentials.username, credentials.password)
-    
+
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     # Create token pair
     access_token, refresh_token = await create_token_pair(
         {"sub": str(user.id)}, session
     )
-    
+
     # Set secure HTTP-only cookies
     set_auth_cookies(
         response=response,
         access_token=access_token,
         refresh_token=refresh_token
     )
-    
+
     return {"message": "Login successful"}
 ```
 
@@ -171,7 +176,9 @@ async def logout_manual(
     return result
 ```
 
-## User Authentication Example
+## User Authentication Examples
+
+### 1. Legacy Integer-ID Authentication
 
 Implement a custom user authentication class using `BaseUserAuthentication`:
 
@@ -214,29 +221,41 @@ class AuthService(BaseUserAuthentication[User]):
             return user
         return None
 
-    async def get_user_by_id(self, user_id) -> User:
-        """
-        Get a user by their ID.
-
-        Args:
-            user_id (int): The user's unique identifier.
-
-        Returns:
-            User: The user object.
-        """
+    async def get_user_by_id(self, user_id: int) -> User:
         return await self.repo.get_by_id(user_id)
 
     def get_user_id(self, user) -> int:
-        """
-        Extract the user ID from a user object.
-
-        Args:
-            user (User): The user object.
-
-        Returns:
-            int: The user's ID.
-        """
         return user.id
+
+```
+
+### 2. Modern UUID Authentication (New)
+
+For systems using UUIDs, inherit from `BaseUUIDUserAuthentication`. The interface automatically handles UUID-to-String conversions for JWT compatibility.
+
+```python
+import uuid
+from typing import Union
+from fastcore.security.tokens.uuid.users import BaseUUIDUserAuthentication
+from .models import UUIDUser
+
+class UUIDAuthService(BaseUUIDUserAuthentication[UUIDUser]):
+    def __init__(self, session):
+        self.repo = UUIDUserRepository(session)
+
+    async def authenticate(self, credentials) -> UUIDUser | None:
+        # Same authentication logic
+        ...
+
+    async def get_user_by_id(self, user_id: Union[uuid.UUID, str]) -> UUIDUser:
+        """
+        Supports both UUID objects and string representations from JWTs.
+        """
+        return await self.repo.get_by_id(user_id)
+
+    def get_user_id(self, user) -> Union[uuid.UUID, str]:
+        return user.id
+
 ```
 
 > **Note:** You must provide a valid database session to your authentication handler (see above).
@@ -374,6 +393,7 @@ async def logout(result=Depends(logout_user)):
 ## Security Best Practices
 
 ### Cookie-based Authentication
+
 - Use HTTPS in production (cookies marked as secure)
 - HTTP-only cookies prevent XSS attacks
 - SameSite=Strict provides CSRF protection
@@ -381,12 +401,14 @@ async def logout(result=Depends(logout_user)):
 - Secure logout clears all authentication cookies
 
 ### Header-based Authentication
+
 - Use HTTPS to protect tokens in transit
 - Store tokens securely on the client side
 - Implement proper token refresh logic
 - Handle token expiration gracefully
 
 ### General Security
+
 - Use strong, randomly generated JWT secrets
 - Implement proper password hashing with bcrypt
 - Use stateful token validation with database tracking
@@ -405,7 +427,9 @@ async def logout(result=Depends(logout_user)):
 - Stateless JWT blacklisting/revocation requires stateful DB tracking
 
 ## Notes
+
 - All token-related logic is now under the `tokens/` subpackage for maintainability and clarity.
+- **UUID Support:** The module now fully supports UUID-based primary keys via the `tokens.uuid` subpackage and `BaseUUIDUserAuthentication` class.
 - All public API is accessible from the root `security` module for convenience.
 - Cookie-based authentication is ideal for web applications where you control both frontend and backend.
 - Header-based authentication is suitable for APIs consumed by mobile apps or third-party clients.
