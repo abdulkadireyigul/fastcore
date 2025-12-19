@@ -885,13 +885,12 @@ def test_benchmark_route_config_lookup(benchmark, rate_limit_middleware):
     benchmark(run_lookups)
 
 
-@pytest.mark.asyncio
-async def test_benchmark_dispatch_performance(
+def test_benchmark_dispatch_performance(
     benchmark, mock_bench_app, rate_limit_middleware
 ):
     """
     Tests the end-to-end performance of the middleware's dispatch method.
-    Measures the time taken to process a request that is not rate-limited.
+    Fixed: Uses a sync wrapper to ensure the async code is actually executed.
     """
     request = MagicMock()
     request.method = "GET"
@@ -902,9 +901,10 @@ async def test_benchmark_dispatch_performance(
     async def mock_call_next(req):
         return Response(status_code=200)
 
-    # Directly benchmark the async dispatch method.
-    # The benchmark fixture itself handles the async execution.
-    benchmark(rate_limit_middleware.dispatch, request, mock_call_next)
+    def sync_wrapper():
+        asyncio.run(rate_limit_middleware.dispatch(request, mock_call_next))
+
+    benchmark(sync_wrapper)
 
 
 @pytest.fixture
@@ -921,12 +921,10 @@ def redis_rate_limit_middleware(mock_bench_app):
     )
 
 
-@pytest.mark.asyncio
-async def test_benchmark_redis_dispatch_performance(
-    benchmark, redis_rate_limit_middleware
-):
+def test_benchmark_redis_dispatch_performance(benchmark, redis_rate_limit_middleware):
     """
     Benchmarks the end-to-end performance of the Redis rate-limiting middleware.
+    Fixed: Uses a sync wrapper to ensure the async code is actually executed.
     """
     request = MagicMock()
     request.method = "GET"
@@ -936,5 +934,7 @@ async def test_benchmark_redis_dispatch_performance(
     async def mock_call_next(req):
         return Response(status_code=200)
 
-    # The benchmark fixture handles the async execution directly.
-    benchmark(redis_rate_limit_middleware.dispatch, request, mock_call_next)
+    def sync_wrapper():
+        asyncio.run(redis_rate_limit_middleware.dispatch(request, mock_call_next))
+
+    benchmark(sync_wrapper)
