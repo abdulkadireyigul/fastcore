@@ -16,7 +16,7 @@ from fastcore.errors import setup_errors
 from fastcore.logging.manager import ensure_logger
 from fastcore.middleware import setup_middlewares
 from fastcore.monitoring.manager import setup_monitoring
-from fastcore.security import setup_security
+from fastcore.security.manager import setup_security
 
 
 def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> None:

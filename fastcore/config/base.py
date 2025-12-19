@@ -52,7 +52,7 @@ class BaseAppSettings(BaseSettings):
     APP_NAME: str = Field(default="FastCore")
     APP_ENV: str = Field(default="development")
     DEBUG: bool = Field(default=False)
-    VERSION: str = Field(default="0.1.0")
+    VERSION: str = Field(default="0.2.0")
 
     LOG_LEVEL: Optional[str] = Field(
         default="INFO",

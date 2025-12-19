@@ -103,7 +103,7 @@ FastCore follows [Semantic Versioning](https://semver.org/) (SemVer):
 - **MINOR** version (0.x.0) - Functionality added in a backward-compatible manner
 - **PATCH** version (0.0.x) - Backward-compatible bug fixes
 
-Current version: **0.1.0** (API v1)
+Current version: **0.2.0** (API v1)
 
 ### Version Compatibility
 
