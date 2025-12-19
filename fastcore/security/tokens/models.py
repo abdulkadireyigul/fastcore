@@ -14,7 +14,6 @@ Limitations:
 - Stateless JWT blacklisting/revocation requires stateful DB tracking
 """
 
-import enum
 import sys
 import traceback
 import warnings
@@ -25,8 +24,28 @@ from sqlalchemy.orm import relationship
 
 from fastcore.db.base import BaseModel
 from fastcore.logging import ensure_logger
+from fastcore.security.tokens.types import TokenType
 
 logger = ensure_logger(None, __name__)
+
+# --- IMPORT TRACER (Legacy Model) ---
+# Inspect the stack to find who imported this file, ignoring importlib noise.
+_stack = traceback.extract_stack()
+_caller = next(
+    (
+        f
+        for f in reversed(_stack)
+        if "importlib" not in f.filename and f.filename != __file__
+    ),
+    None,
+)
+
+if _caller:
+    logger.info(  # type: ignore
+        f"\n[IMPORT TRACER] 'Legacy Token Model' (Integer) loaded."
+        f"\n1. Triggered by: {_caller.filename}"
+        f"\n2. Line Number : {_caller.lineno}"
+    )
 
 # --- CONFLICT GUARD ---
 if "fastcore.security.tokens.uuid.models" in sys.modules:
@@ -58,22 +77,6 @@ if "fastcore.security.tokens.uuid.models" in sys.modules:
         RuntimeWarning,
         stacklevel=2,
     )
-
-
-class TokenType(str, enum.Enum):
-    """
-    Enum for token types.
-
-    Features:
-    - Supports access and refresh tokens
-
-    Limitations:
-    - Only password-based JWT authentication is included by default
-    - No advanced RBAC or permission system
-    """
-
-    ACCESS = "access"
-    REFRESH = "refresh"
 
 
 class Token(BaseModel):

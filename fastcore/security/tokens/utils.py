@@ -6,7 +6,7 @@ import jwt  # type: ignore
 from fastcore.errors.exceptions import ExpiredTokenError, InvalidTokenError
 from fastcore.logging.manager import ensure_logger
 from fastcore.security.manager import get_security_settings
-from fastcore.security.tokens.models import TokenType
+from fastcore.security.tokens.types import TokenType
 
 logger = ensure_logger(None, __name__)
 

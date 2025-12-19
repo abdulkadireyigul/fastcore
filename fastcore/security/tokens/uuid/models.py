@@ -9,7 +9,6 @@ stateful validation (e.g., checking revocation status) of JWTs in systems
 where users are identified by UUIDs.
 """
 
-import enum
 import sys
 import traceback
 import uuid
@@ -23,12 +22,28 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 # Import our new UUID-based infrastructure
 from fastcore.db.uuid.base import GUID, UUIDBaseModel
 from fastcore.logging import ensure_logger
-
-# Re-use the standard TokenType enum (shared constant)
-# from fastcore.security.tokens.models import TokenType
-
+from fastcore.security.tokens.types import TokenType
 
 logger = ensure_logger(None, __name__)
+
+# --- IMPORT TRACER (UUID Model) ---
+# Inspect the stack to find who imported this file, ignoring importlib noise.
+_stack = traceback.extract_stack()
+_caller = next(
+    (
+        f
+        for f in reversed(_stack)
+        if "importlib" not in f.filename and f.filename != __file__
+    ),
+    None,
+)
+
+if _caller:
+    logger.info(  # type: ignore
+        f"\n[IMPORT TRACER] 'UUID Token Model' loaded."
+        f"\n1. Triggered by: {_caller.filename}"
+        f"\n2. Line Number : {_caller.lineno}"
+    )
 
 # --- CONFLICT GUARD ---
 if "fastcore.security.tokens.models" in sys.modules:
@@ -60,22 +75,6 @@ if "fastcore.security.tokens.models" in sys.modules:
         RuntimeWarning,
         stacklevel=2,
     )
-
-
-class TokenType(str, enum.Enum):
-    """
-    Enum for token types.
-
-    Features:
-    - Supports access and refresh tokens
-
-    Limitations:
-    - Only password-based JWT authentication is included by default
-    - No advanced RBAC or permission system
-    """
-
-    ACCESS = "access"
-    REFRESH = "refresh"
 
 
 class UUIDToken(UUIDBaseModel):
