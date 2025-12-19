@@ -9,7 +9,9 @@ stateful validation (e.g., checking revocation status) of JWTs in systems
 where users are identified by UUIDs.
 """
 
+import sys
 import uuid
+import warnings
 from datetime import datetime, timezone
 from typing import Any
 
@@ -21,6 +23,19 @@ from fastcore.db.uuid.base import GUID, UUIDBaseModel
 
 # Re-use the standard TokenType enum (shared constant)
 from fastcore.security.tokens.models import TokenType
+
+# --- CONFLICT GUARD ---
+if "fastcore.security.tokens.models" in sys.modules:
+    warnings.warn(
+        "\n\nCRITICAL CONFIGURATION WARNING!\n"
+        "---------------------------------------\n"
+        "Both 'Legacy Token (Integer)' and 'UUID Token' models are imported detected!\n"
+        "Since both map to the 'tokens' table, the last imported model will OVERWRITE the database schema.\n"
+        "Please ensure your application imports ONLY ONE of these modules.\n"
+        "If you are running tests, you can ignore this warning.\n",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 
 class UUIDToken(UUIDBaseModel):
@@ -39,7 +54,8 @@ class UUIDToken(UUIDBaseModel):
         user_id (uuid.UUID): Foreign Key linking to the User model.
     """
 
-    __tablename__ = "uuid_tokens"
+    __tablename__ = "tokens"
+    __table_args__ = {"extend_existing": True}
 
     # The JTI (JWT ID) claim from the token payload.
     # Used to uniquely identify a specific token instance.
@@ -70,7 +86,7 @@ class UUIDToken(UUIDBaseModel):
 
     # Relationship to the User model.
     # 'Any' is used here to avoid circular imports if the User model is defined elsewhere.
-    user: Mapped["Any"] = relationship("User")
+    user: Mapped["Any"] = relationship("User", back_populates="tokens")
 
     @property
     def is_expired(self) -> bool:

@@ -15,12 +15,28 @@ Limitations:
 """
 
 import enum
+import sys
+import warnings
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from fastcore.db.base import BaseModel
+
+# --- CONFLICT GUARD ---
+# Eğer UUID modülü zaten hafızadaysa uyar.
+if "fastcore.security.tokens.uuid.models" in sys.modules:
+    warnings.warn(
+        "\n\nCRITICAL CONFIGURATION WARNING!\n"
+        "---------------------------------------\n"
+        "Both 'UUID Token' and 'Legacy Token (Integer)' models are imported detected!\n"
+        "Since both map to the 'tokens' table, the last imported model will OVERWRITE the database schema.\n"
+        "Please ensure your application imports ONLY ONE of these modules.\n"
+        "If you are running tests, you can ignore this warning.\n",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 
 class TokenType(str, enum.Enum):

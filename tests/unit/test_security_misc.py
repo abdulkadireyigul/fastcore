@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException, Request, Response
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from fastcore.db.base import BaseModel
@@ -20,20 +20,37 @@ from fastcore.errors.exceptions import (
     RevokedTokenError,
 )
 from fastcore.security import dependencies
+from fastcore.security.tokens.models import Token, TokenType
+from fastcore.security.tokens.uuid.models import UUIDToken
 from fastcore.security.users import UserAuthentication
 
 
-class User(BaseModel):
-    __tablename__ = "users"
+class SecurityTestUser(BaseModel):
+    __tablename__ = "security_test_users"
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, index=True)
     # tokens = relationship("Token",  back_populates="user")
-    tokens = relationship("Token", cascade="all, delete-orphan", back_populates="user")
+    # tokens = relationship("Token", cascade="all, delete-orphan", back_populates="user")
+    legacy_tokens = relationship(
+        "Token", back_populates="user", cascade="all, delete-orphan"
+    )
+    new_uuid_tokens = relationship(
+        "UUIDToken", back_populates="user", cascade="all, delete-orphan"
+    )
     __table_args__ = {"extend_existing": True}
 
 
+legacy_user_id_col = Token.__table__.c.user_id
+legacy_user_id_col.foreign_keys.clear()
+legacy_user_id_col.append_foreign_key(ForeignKey("security_test_users.id"))
+Token.user = relationship("SecurityTestUser", back_populates="legacy_tokens")
+
+UUIDToken.__tablename__ = "skipped_uuid_tokens_test"
+UUIDToken.__table_args__ = {"extend_existing": True}
+UUIDToken.user = relationship("SecurityTestUser", viewonly=True, foreign_keys=[])
+
 # from fastcore.security.models import Token, TokenType
-from fastcore.security.tokens.models import Token, TokenType
+# from fastcore.security.tokens.models import Token, TokenType
 from tests.conftest import assert_http_exc
 
 # Use shared dummy_session and dummy_settings fixtures from conftest.py where needed
@@ -479,7 +496,7 @@ async def test_get_token_data_from_cookie_exception_propagation(
 async def test_get_current_user_from_cookie_dependency_success(mock_auth_handler):
     """Test successful user retrieval from cookie token."""
     token_data = {"sub": "123", "exp": 1234567890}
-    test_user = User(id=123, username="testuser")
+    test_user = SecurityTestUser(id=123, username="testuser")
     mock_auth_handler.get_user_by_id.return_value = test_user
 
     mock_auth_handler_dependency = Mock(return_value=mock_auth_handler)
@@ -852,7 +869,7 @@ async def test_full_cookie_auth_flow():
 
     # Step 3: Validate token from cookie
     expected_token_data = {"sub": "123", "exp": 1234567890}
-    test_user = User(id=123, username="testuser")
+    test_user = SecurityTestUser(id=123, username="testuser")
     mock_auth_handler.get_user_by_id.return_value = test_user
 
     with patch("fastcore.security.dependencies.get_token_data") as mock_get_token_data:
