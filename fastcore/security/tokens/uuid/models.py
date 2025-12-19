@@ -39,7 +39,7 @@ _caller = next(
 )
 
 if _caller:
-    logger.info(  # type: ignore
+    logger.debug(  # type: ignore
         f"\n[IMPORT TRACER] 'UUID Token Model' loaded."
         f"\n1. Triggered by: {_caller.filename}"
         f"\n2. Line Number : {_caller.lineno}"

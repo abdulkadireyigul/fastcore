@@ -14,7 +14,7 @@ from sqlalchemy import update as sqlalchemy_update
 
 from fastcore.errors.exceptions import DBError
 from fastcore.logging.manager import ensure_logger
-from fastcore.security.tokens.models import TokenType
+from fastcore.security.tokens.types import TokenType
 
 # Configure logger for this module
 logger = ensure_logger(None, __name__)
