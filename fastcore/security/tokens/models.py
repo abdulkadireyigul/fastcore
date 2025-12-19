@@ -16,6 +16,7 @@ Limitations:
 
 import enum
 import sys
+import traceback
 import warnings
 from datetime import datetime, timezone
 
@@ -23,17 +24,37 @@ from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, Str
 from sqlalchemy.orm import relationship
 
 from fastcore.db.base import BaseModel
+from fastcore.logging import ensure_logger
+
+logger = ensure_logger(None, __name__)
 
 # --- CONFLICT GUARD ---
-# Eğer UUID modülü zaten hafızadaysa uyar.
 if "fastcore.security.tokens.uuid.models" in sys.modules:
-    warnings.warn(
-        "\n\nCRITICAL CONFIGURATION WARNING!\n"
+    full_stack = traceback.extract_stack()
+
+    filtered_stack = [
+        frame
+        for frame in full_stack
+        if "<frozen" not in frame.filename and "importlib" not in frame.filename
+    ]
+
+    clean_traceback = "".join(traceback.format_list(filtered_stack))
+
+    log_message = (
+        "\nCRITICAL MODEL CONFLICT DETECTED!\n"
         "---------------------------------------\n"
-        "Both 'UUID Token' and 'Legacy Token (Integer)' models are imported detected!\n"
-        "Since both map to the 'tokens' table, the last imported model will OVERWRITE the database schema.\n"
-        "Please ensure your application imports ONLY ONE of these modules.\n"
-        "If you are running tests, you can ignore this warning.\n",
+        "The 'Legacy Token (Integer)' model is being imported, but 'UUID Token' is already loaded.\n"
+        "This will cause database schema conflicts (both map to 'tokens' table).\n"
+        "\n"
+        "IMPORT TRACEBACK (Who triggered this import?):\n"
+        f"{clean_traceback}\n"
+        "---------------------------------------"
+    )
+
+    logger.warning(log_message)  # type: ignore
+
+    warnings.warn(
+        "Both Token models imported! See logs for full traceback.",
         RuntimeWarning,
         stacklevel=2,
     )

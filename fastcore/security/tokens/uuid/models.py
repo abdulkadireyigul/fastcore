@@ -9,7 +9,9 @@ stateful validation (e.g., checking revocation status) of JWTs in systems
 where users are identified by UUIDs.
 """
 
+import enum
 import sys
+import traceback
 import uuid
 import warnings
 from datetime import datetime, timezone
@@ -20,22 +22,60 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Import our new UUID-based infrastructure
 from fastcore.db.uuid.base import GUID, UUIDBaseModel
+from fastcore.logging import ensure_logger
 
 # Re-use the standard TokenType enum (shared constant)
-from fastcore.security.tokens.models import TokenType
+# from fastcore.security.tokens.models import TokenType
+
+
+logger = ensure_logger(None, __name__)
 
 # --- CONFLICT GUARD ---
 if "fastcore.security.tokens.models" in sys.modules:
-    warnings.warn(
-        "\n\nCRITICAL CONFIGURATION WARNING!\n"
+    full_stack = traceback.extract_stack()
+
+    filtered_stack = [
+        frame
+        for frame in full_stack
+        if "<frozen" not in frame.filename and "importlib" not in frame.filename
+    ]
+
+    clean_traceback = "".join(traceback.format_list(filtered_stack))
+
+    log_message = (
+        "\nCRITICAL MODEL CONFLICT DETECTED!\n"
         "---------------------------------------\n"
-        "Both 'Legacy Token (Integer)' and 'UUID Token' models are imported detected!\n"
-        "Since both map to the 'tokens' table, the last imported model will OVERWRITE the database schema.\n"
-        "Please ensure your application imports ONLY ONE of these modules.\n"
-        "If you are running tests, you can ignore this warning.\n",
+        "The 'UUID Token' model is being imported, but 'Legacy Token (Integer)' is already loaded.\n"
+        "This will cause database schema conflicts (both map to 'tokens' table).\n"
+        "\n"
+        "IMPORT TRACEBACK (Who triggered this import?):\n"
+        f"{clean_traceback}\n"
+        "---------------------------------------"
+    )
+
+    logger.warning(log_message)  # type: ignore
+
+    warnings.warn(
+        "Both Token models imported! See logs for full traceback.",
         RuntimeWarning,
         stacklevel=2,
     )
+
+
+class TokenType(str, enum.Enum):
+    """
+    Enum for token types.
+
+    Features:
+    - Supports access and refresh tokens
+
+    Limitations:
+    - Only password-based JWT authentication is included by default
+    - No advanced RBAC or permission system
+    """
+
+    ACCESS = "access"
+    REFRESH = "refresh"
 
 
 class UUIDToken(UUIDBaseModel):
