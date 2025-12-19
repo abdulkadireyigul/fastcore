@@ -28,7 +28,7 @@ from fastcore.errors.exceptions import (
 from fastcore.logging.manager import ensure_logger
 from fastcore.schemas.response.token import TokenResponse
 from fastcore.security.manager import get_security_settings
-from fastcore.security.tokens.models import TokenType
+from fastcore.security.tokens.types import TokenType
 from fastcore.security.tokens.utils import (
     decode_token,
     encode_jwt,

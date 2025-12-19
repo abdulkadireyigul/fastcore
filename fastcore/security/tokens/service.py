@@ -15,8 +15,9 @@ from typing import Any, Dict, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.security.tokens.base_service import BaseTokenService
-from fastcore.security.tokens.models import Token, TokenType
+from fastcore.security.tokens.models import Token
 from fastcore.security.tokens.repository import TokenRepository
+from fastcore.security.tokens.types import TokenType
 
 # --- Re-exports for Backward Compatibility ---
 # These utilities are re-exported here so that legacy code importing them

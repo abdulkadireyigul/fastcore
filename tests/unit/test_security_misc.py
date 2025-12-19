@@ -20,7 +20,8 @@ from fastcore.errors.exceptions import (
     RevokedTokenError,
 )
 from fastcore.security import dependencies
-from fastcore.security.tokens.models import Token, TokenType
+from fastcore.security.tokens.models import Token
+from fastcore.security.tokens.types import TokenType
 from fastcore.security.tokens.uuid.models import UUIDToken
 from fastcore.security.users import UserAuthentication
 

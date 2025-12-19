@@ -14,7 +14,7 @@ from typing import Any, Dict, Optional, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastcore.security.tokens.base_service import BaseTokenService
-from fastcore.security.tokens.models import TokenType
+from fastcore.security.tokens.types import TokenType
 
 from .models import UUIDToken
 from .repository import UUIDTokenRepository

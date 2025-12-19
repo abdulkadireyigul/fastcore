@@ -14,7 +14,7 @@ from fastcore.errors.exceptions import (
     InvalidTokenError,
     RevokedTokenError,
 )
-from fastcore.security.tokens.models import Token, TokenType
+from fastcore.security.tokens.models import Token
 from fastcore.security.tokens.repository import TokenRepository
 from fastcore.security.tokens.service import (
     create_access_token,
@@ -25,6 +25,7 @@ from fastcore.security.tokens.service import (
     revoke_token,
     validate_token,
 )
+from fastcore.security.tokens.types import TokenType
 from fastcore.security.tokens.utils import decode_token
 
 # ATTENTION: If you only want to test a specific file, uncomment below.
@@ -748,7 +749,7 @@ async def test_utils_validate_jwt_stateless_pyjwt_error(dummy_settings):
 def test_token_model_repr_and_properties():
     from datetime import datetime, timedelta, timezone
 
-    from fastcore.security.tokens.models import Token, TokenType
+    # from fastcore.security.tokens.models import Token, TokenType
 
     token = Token(
         token_id="abc",

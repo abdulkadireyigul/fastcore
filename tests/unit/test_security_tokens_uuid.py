@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from fastcore.errors.exceptions import DBError, InvalidTokenError, RevokedTokenError
-from fastcore.security.tokens.models import TokenType
+from fastcore.security.tokens.types import TokenType
 from fastcore.security.tokens.uuid import service as uuid_service_module
 from fastcore.security.tokens.uuid.models import UUIDToken
 from fastcore.security.tokens.uuid.repository import UUIDTokenRepository

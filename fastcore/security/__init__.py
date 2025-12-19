@@ -37,7 +37,7 @@ from fastcore.security.users import (
 
 # from fastcore.security.manager import get_security_status, setup_security
 
-# from fastcore.security.tokens.models import TokenType
+# from fastcore.security.tokens.types import TokenType
 # from fastcore.security.tokens.repository import TokenRepository
 # from fastcore.security.tokens.service import (
 #     create_access_token,
