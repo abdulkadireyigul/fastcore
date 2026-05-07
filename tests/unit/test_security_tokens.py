@@ -14,7 +14,7 @@ from fastcore.errors.exceptions import (
     InvalidTokenError,
     RevokedTokenError,
 )
-from fastcore.security.tokens.models import Token, TokenType
+from fastcore.security.tokens.models import Token
 from fastcore.security.tokens.repository import TokenRepository
 from fastcore.security.tokens.service import (
     create_access_token,
@@ -25,6 +25,7 @@ from fastcore.security.tokens.service import (
     revoke_token,
     validate_token,
 )
+from fastcore.security.tokens.types import TokenType
 from fastcore.security.tokens.utils import decode_token
 
 # ATTENTION: If you only want to test a specific file, uncomment below.
@@ -144,13 +145,14 @@ async def test_create_token_success_and_db_error(
     dummy_session.rollback = AsyncMock()
     # Success
     with patch("fastcore.security.tokens.jwt.encode", return_value=jwt_value), patch(
-        "fastcore.security.tokens.TokenRepository.create", new_callable=AsyncMock
+        "fastcore.security.tokens.repository.TokenRepository.create",
+        new_callable=AsyncMock,
     ):
         token = await service_func({"sub": 26}, dummy_session)
         assert token == jwt_value
     # DBError
     with patch("fastcore.security.tokens.jwt.encode", return_value=jwt_value), patch(
-        "fastcore.security.tokens.TokenRepository.create",
+        "fastcore.security.tokens.repository.TokenRepository.create",
         new_callable=AsyncMock,
         side_effect=Exception("fail"),
     ):
@@ -161,17 +163,17 @@ async def test_create_token_success_and_db_error(
 
 @pytest.mark.asyncio
 async def test_create_token_pair_success(dummy_settings, dummy_session):
-    # Patch the actual service function, not just the helpers
+    # NOT: Burada 'service.create_access_token' fonksiyonunu MOCKLAMIYORUZ!
+    # Çünkü 'create_token_pair' fonksiyonu, wrapper fonksiyonları atlayıp
+    # doğrudan 'BaseTokenService._create_token_impl' metodunu çağırır.
+    # Bu yüzden mock hedefini kodun geçtiği gerçek yola (Internal Impl) koymalıyız.
     with patch(
-        "fastcore.security.tokens.service.create_access_token",
-        new_callable=AsyncMock,
-        return_value="access.jwt",
+        "fastcore.security.tokens.base_service.BaseTokenService._create_token_impl",
+        side_effect=["access.jwt", "refresh.jwt"],
     ), patch(
-        "fastcore.security.tokens.service.create_refresh_token",
-        new_callable=AsyncMock,
-        return_value="refresh.jwt",
-    ), patch(
-        "fastcore.security.tokens.service.decode_token",
+        # NOT: Aynı şekilde kod 'base_service' içindeki decode_token'ı kullandığı için
+        # yamayı 'service' modülüne değil, 'base_service' modülüne yapıyoruz.
+        "fastcore.security.tokens.base_service.decode_token",
         side_effect=[
             {
                 "exp": int(
@@ -241,7 +243,7 @@ async def test_create_token_logger_info(dummy_session):
             create_access_token,
             [
                 "fastcore.security.tokens.jwt.encode",
-                "fastcore.security.tokens.TokenRepository.create",
+                "fastcore.security.tokens.repository.TokenRepository.create",
             ],
             None,
             lambda token: token == "jwt_token",
@@ -250,7 +252,7 @@ async def test_create_token_logger_info(dummy_session):
             create_refresh_token,
             [
                 "fastcore.security.tokens.jwt.encode",
-                "fastcore.security.tokens.TokenRepository.create",
+                "fastcore.security.tokens.repository.TokenRepository.create",
             ],
             None,
             lambda token: token == "jwt_refresh",
@@ -259,7 +261,7 @@ async def test_create_token_logger_info(dummy_session):
             create_access_token,
             [
                 "fastcore.security.tokens.jwt.encode",
-                "fastcore.security.tokens.TokenRepository.create",
+                "fastcore.security.tokens.repository.TokenRepository.create",
             ],
             DBError,
             None,
@@ -268,7 +270,7 @@ async def test_create_token_logger_info(dummy_session):
             create_refresh_token,
             [
                 "fastcore.security.tokens.jwt.encode",
-                "fastcore.security.tokens.TokenRepository.create",
+                "fastcore.security.tokens.repository.TokenRepository.create",
             ],
             DBError,
             None,
@@ -340,7 +342,7 @@ async def test_validate_token_variants(
     dummy_settings, dummy_session, payload, revoked, raises
 ):
     with patch("fastcore.security.tokens.jwt.decode", return_value=payload), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         return_value=None
         if revoked is None
@@ -371,7 +373,7 @@ async def test_validate_token_not_found(dummy_settings, dummy_session):
         "fastcore.security.tokens.jwt.decode",
         return_value={"jti": "id1", "type": TokenType.ACCESS, "sub": 26},
     ), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         return_value=None,
     ):
@@ -432,12 +434,22 @@ async def test_validate_token_signature_error(dummy_settings, dummy_session):
 # --- Token refresh/revoke tests ---
 @pytest.mark.asyncio
 async def test_refresh_access_token_success(dummy_settings, dummy_session):
+    # NOT: 'service.validate_token' yerine 'base_service.validate_jwt_stateless' mockluyoruz.
+    # Çünkü kod wrapper'ı atlayıp internal impl'a giriyor, orası da utils'den gelen bu fonksiyonu kullanıyor.
     with patch(
-        "fastcore.security.tokens.service.validate_token",
+        "fastcore.security.tokens.base_service.validate_jwt_stateless",
         new_callable=AsyncMock,
-        return_value={"sub": 26},
+        # Doğrulama başarılı olduğunda dönen payload (jti önemli, DB sorgusu için kullanılıyor)
+        return_value={"sub": 26, "jti": "mock-jti", "type": "refresh"},
     ), patch(
-        "fastcore.security.tokens.service.create_access_token",
+        # NOT: Yeni mimaride validation 'Stateful' olduğu için DB kontrolü de yapılır.
+        # Bu yüzden repository sorgusunu da mocklamamız şart.
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
+        new_callable=AsyncMock,
+        return_value=MagicMock(revoked=False),  # Token DB'de var ve revoke edilmemiş
+    ), patch(
+        # NOT: Yeni token üretimi için yine wrapper yerine internal impl mocklanıyor.
+        "fastcore.security.tokens.base_service.BaseTokenService._create_token_impl",
         new_callable=AsyncMock,
         return_value="newtoken",
     ):
@@ -448,7 +460,7 @@ async def test_refresh_access_token_success(dummy_settings, dummy_session):
 @pytest.mark.asyncio
 async def test_refresh_access_token_invalid(dummy_settings, dummy_session):
     with patch(
-        "fastcore.security.tokens.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         side_effect=InvalidTokenError("fail"),
     ):
@@ -459,7 +471,7 @@ async def test_refresh_access_token_invalid(dummy_settings, dummy_session):
 @pytest.mark.asyncio
 async def test_refresh_access_token_missing_sub(dummy_settings, dummy_session):
     with patch(
-        "fastcore.security.tokens.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         return_value={},
     ):
@@ -472,58 +484,96 @@ async def test_refresh_access_token_error_branch(dummy_session):
     from fastcore.security.tokens.service import refresh_access_token
 
     with patch(
-        "fastcore.security.tokens.service.validate_token",
+        "fastcore.security.tokens.base_service.validate_jwt_stateless",
         new_callable=AsyncMock,
-        side_effect=Exception("fail-refresh-validate"),
+        return_value={"sub": 26, "jti": "mock-jti", "type": "refresh"},
+    ), patch(
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
+        new_callable=AsyncMock,
+        return_value=MagicMock(revoked=False),
+    ), patch(
+        "fastcore.security.tokens.base_service.BaseTokenService._create_token_impl",
+        side_effect=Exception("fail-refresh-create"),
     ):
         with pytest.raises(DBError) as exc:
             await refresh_access_token("refresh", dummy_session)
         assert "Error refreshing access token" in str(exc.value)
 
 
+# @pytest.mark.asyncio
+# async def test_refresh_access_token_logger_info(dummy_settings, dummy_session):
+#     # Covers logger.info for successful refresh (service.py:135-137)
+#     with patch(
+#         "fastcore.security.tokens.service.validate_token",
+#         new_callable=AsyncMock,
+#         return_value={"sub": 26},
+#     ), patch(
+#         "fastcore.security.tokens.service.create_access_token",
+#         new_callable=AsyncMock,
+#         return_value="access_token",
+#     ) as mock_create_access_token:
+#         token = await refresh_access_token("refresh", dummy_session)
+#         assert token == "access_token"
+#         mock_create_access_token.assert_awaited_once()
+
+
 @pytest.mark.asyncio
 async def test_refresh_access_token_logger_info(dummy_settings, dummy_session):
-    # Covers logger.info for successful refresh (service.py:135-137)
     with patch(
-        "fastcore.security.tokens.service.validate_token",
+        "fastcore.security.tokens.base_service.validate_jwt_stateless",
         new_callable=AsyncMock,
-        return_value={"sub": 26},
+        return_value={"sub": 26, "jti": "mock-jti", "type": "refresh"},
     ), patch(
-        "fastcore.security.tokens.service.create_access_token",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
+        new_callable=AsyncMock,
+        return_value=MagicMock(revoked=False),
+    ), patch(
+        "fastcore.security.tokens.base_service.BaseTokenService._create_token_impl",
         new_callable=AsyncMock,
         return_value="access_token",
-    ) as mock_create_access_token:
+    ):
         token = await refresh_access_token("refresh", dummy_session)
         assert token == "access_token"
-        mock_create_access_token.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_refresh_access_token_error_handling(dummy_session):
-    from fastcore.security.tokens.service import refresh_access_token
+    # from fastcore.security.tokens.service import refresh_access_token
 
-    # Patch validate_token to raise Exception to hit error branch
+    # # Patch validate_token to raise Exception to hit error branch
+    # with patch(
+    #     "fastcore.security.tokens.base_service.validate_jwt_stateless",
+    #     new_callable=AsyncMock,
+    #     side_effect=Exception("fail"),
+    # ):
+    #     with pytest.raises(DBError):
+    #         await refresh_access_token("token", dummy_session)
+
+    # DÜZELTME: Utils fonksiyonunu değil, doğrudan BaseService'in doğrulama metodunu mockluyoruz.
+    # Böylece BaseService._validate_token_impl içindeki hata yakalama bloğunu (try/except) atlıyoruz.
+    # Doğrudan 'Exception' fırlatıldığında, refresh metodunun bunu 'DBError'a çevirmesi gerekir.
+
     with patch(
-        "fastcore.security.tokens.service.validate_token",
-        new_callable=AsyncMock,
-        side_effect=Exception("fail"),
+        "fastcore.security.tokens.base_service.BaseTokenService._validate_token_impl",
+        side_effect=Exception("fail-unexpected"),
     ):
-        with pytest.raises(DBError):
+        with pytest.raises(DBError) as exc:
             await refresh_access_token("token", dummy_session)
+        assert "Error refreshing access token" in str(exc.value)
 
 
 @pytest.mark.asyncio
 async def test_revoke_token_success(dummy_settings, dummy_session):
     with patch(
-        "fastcore.security.tokens.service.decode_token",
+        "fastcore.security.tokens.base_service.decode_token",
         # new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         return_value=MagicMock(revoked=False),
     ), patch(
-        "fastcore.security.tokens.TokenRepository.revoke_token_for_user",
+        "fastcore.security.tokens.repository.TokenRepository.revoke_token_for_user",
         new_callable=AsyncMock,
     ) as mock_revoke:
         await revoke_token("token", dummy_session)
@@ -533,11 +583,11 @@ async def test_revoke_token_success(dummy_settings, dummy_session):
 @pytest.mark.asyncio
 async def test_revoke_token_already_revoked(dummy_settings, dummy_session):
     with patch(
-        "fastcore.security.tokens.service.decode_token",
+        "fastcore.security.tokens.base_service.decode_token",
         # new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         return_value=MagicMock(revoked=True),
     ):
@@ -560,7 +610,7 @@ async def test_revoke_token_not_found(dummy_settings, dummy_session):
         new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         return_value=None,
     ):
@@ -571,11 +621,11 @@ async def test_revoke_token_not_found(dummy_settings, dummy_session):
 @pytest.mark.asyncio
 async def test_revoke_token_db_error(dummy_settings, dummy_session):
     with patch(
-        "fastcore.security.tokens.service.decode_token",
+        "fastcore.security.tokens.base_service.decode_token",
         new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         side_effect=Exception("fail"),
     ):
@@ -586,15 +636,15 @@ async def test_revoke_token_db_error(dummy_settings, dummy_session):
 @pytest.mark.asyncio
 async def test_revoke_token_flush_db_error(dummy_settings, dummy_session):
     with patch(
-        "fastcore.security.tokens.service.decode_token",
+        "fastcore.security.tokens.base_service.decode_token",
         new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         return_value=MagicMock(revoked=False),
     ), patch(
-        "fastcore.security.tokens.TokenRepository.revoke_token_for_user",
+        "fastcore.security.tokens.repository.TokenRepository.revoke_token_for_user",
         new_callable=AsyncMock,
         side_effect=Exception("fail"),
     ):
@@ -607,7 +657,7 @@ async def test_revoke_token_error_branch(dummy_session):
     from fastcore.security.tokens.service import revoke_token
 
     with patch(
-        "fastcore.security.tokens.service.decode_token",
+        "fastcore.security.tokens.base_service.decode_token",
         new_callable=AsyncMock,
         side_effect=Exception("fail-decode"),
     ):
@@ -622,7 +672,7 @@ async def test_revoke_token_error_handling(dummy_session):
 
     # Patch decode_token to raise Exception to hit error branch
     with patch(
-        "fastcore.security.tokens.service.decode_token",
+        "fastcore.security.tokens.base_service.decode_token",
         new_callable=AsyncMock,
         side_effect=Exception("fail"),
     ):
@@ -635,26 +685,26 @@ async def test_revoke_token_logger_info_branches(dummy_settings, dummy_session):
     # Covers logger.info for already revoked and successfully revoked (service.py:147, 167)
     # Already revoked
     with patch(
-        "fastcore.security.tokens.service.decode_token",
+        "fastcore.security.tokens.base_service.decode_token",
         # new_callable=AsyncMock,
         return_value={"jti": "id1", "sub": 26},
     ), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         return_value=MagicMock(revoked=True),
     ):
         await revoke_token("token", dummy_session)
     # Successfully revoked
     with patch(
-        "fastcore.security.tokens.service.decode_token",
+        "fastcore.security.tokens.base_service.decode_token",
         # new_callable=AsyncMock,
         return_value={"jti": "id2", "sub": 27},
     ), patch(
-        "fastcore.security.tokens.TokenRepository.get_by_token_id",
+        "fastcore.security.tokens.repository.TokenRepository.get_by_token_id",
         new_callable=AsyncMock,
         return_value=MagicMock(revoked=False),
     ), patch(
-        "fastcore.security.tokens.TokenRepository.revoke_token_for_user",
+        "fastcore.security.tokens.repository.TokenRepository.revoke_token_for_user",
         new_callable=AsyncMock,
     ):
         await revoke_token("token", dummy_session)
@@ -699,7 +749,7 @@ async def test_utils_validate_jwt_stateless_pyjwt_error(dummy_settings):
 def test_token_model_repr_and_properties():
     from datetime import datetime, timedelta, timezone
 
-    from fastcore.security.tokens.models import Token, TokenType
+    # from fastcore.security.tokens.models import Token, TokenType
 
     token = Token(
         token_id="abc",
@@ -737,24 +787,44 @@ def test_token_model_repr_and_properties():
 @pytest.mark.asyncio
 async def test_revoke_all_tokens_for_user_success():
     session = AsyncMock()
-    repo_mock = AsyncMock()
-    with patch(
-        "fastcore.security.tokens.service.TokenRepository", return_value=repo_mock
-    ):
+    # repo_mock = AsyncMock()
+    # with patch(
+    #     "fastcore.security.tokens.service.TokenRepository", return_value=repo_mock
+    # ):
+    #     await revoke_all_tokens_for_user(123, session)
+    #     repo_mock.revoke_all_for_user.assert_awaited_once_with(123)
+    #     session.commit.assert_awaited_once()
+
+    # DÜZELTME: Sınıfı değil, doğrudan sınıf üzerindeki metodu mockluyoruz.
+    # Bu yöntem, sınıf referansı önceden alınmış olsa bile çalışır.
+    with patch.object(
+        TokenRepository, "revoke_all_for_user", new_callable=AsyncMock
+    ) as mock_method:
         await revoke_all_tokens_for_user(123, session)
-        repo_mock.revoke_all_for_user.assert_awaited_once_with(123)
+
+        mock_method.assert_awaited_once_with(123)
         session.commit.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_revoke_all_tokens_for_user_error():
     session = AsyncMock()
-    repo_mock = AsyncMock()
-    repo_mock.revoke_all_for_user.side_effect = Exception("fail")
-    with patch(
-        "fastcore.security.tokens.service.TokenRepository", return_value=repo_mock
+    # repo_mock = AsyncMock()
+    # repo_mock.revoke_all_for_user.side_effect = Exception("fail")
+    # with patch(
+    #     "fastcore.security.tokens.service.TokenRepository", return_value=repo_mock
+    # ):
+    #     with patch.object(session, "rollback", new_callable=AsyncMock) as rollback_mock:
+    #         with pytest.raises(Exception):
+    #             await revoke_all_tokens_for_user(123, session)
+    #         rollback_mock.assert_awaited_once()
+
+    # Hata senaryosu
+    with patch.object(
+        TokenRepository, "revoke_all_for_user", side_effect=Exception("fail")
     ):
         with patch.object(session, "rollback", new_callable=AsyncMock) as rollback_mock:
-            with pytest.raises(Exception):
+            # DBError bekleniyor (BaseService exception wrap ediyor)
+            with pytest.raises(DBError):
                 await revoke_all_tokens_for_user(123, session)
             rollback_mock.assert_awaited_once()

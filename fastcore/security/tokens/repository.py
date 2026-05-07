@@ -1,129 +1,30 @@
 """
-Token repository for stateful JWT authentication.
+Legacy Token Repository Module.
 
-This module provides a repository for token operations using SQLAlchemy.
+This module implements the repository pattern for Integer-based Token entities.
+It serves as the backward-compatible persistence layer for systems that rely on
+Integer user IDs.
 
-Limitations:
-- Only password-based JWT authentication is included by default
-- No OAuth2 authorization code, implicit, or client credentials flows
-- No social login (Google, Facebook, etc.)
-- No multi-factor authentication
-- No user registration or management flows (only protocols/interfaces)
-- No advanced RBAC or permission system
-- No API key support
-- Stateless JWT blacklisting/revocation requires stateful DB tracking
+By inheriting from `TokenRepositoryMixin`, it shares the exact same business logic
+and query structure as the modern UUID implementation, ensuring feature parity
+while maintaining legacy support.
 """
 
-from datetime import datetime, timezone
-from typing import Optional
-
-from sqlalchemy import select
-
 from fastcore.db.repository import BaseRepository
-from fastcore.errors.exceptions import DBError
-from fastcore.logging.manager import ensure_logger
-
-from .models import Token, TokenType
-
-logger = ensure_logger(None, __name__)
+from fastcore.security.tokens.mixins import TokenRepositoryMixin
+from fastcore.security.tokens.models import Token
 
 
-class TokenRepository(BaseRepository[Token]):
+class TokenRepository(BaseRepository[Token], TokenRepositoryMixin[Token]):
     """
-    Repository for token operations.
+    Legacy Repository for handling Integer-based Token database operations.
 
-    Features:
-    - Provides CRUD operations for tokens
-    - Supports stateful JWT authentication
+    This class provides the concrete implementation for systems using standard
+    `Token` models (with Integer user_ids).
 
-    Limitations:
-    - Only password-based JWT authentication is included by default
-    - No advanced RBAC or permission system
-    - Stateless JWT blacklisting/revocation requires stateful DB tracking
+    Inheritance:
+    - BaseRepository: Provides standard CRUD (Create, Read, Update, Delete).
+    - TokenRepositoryMixin: Injects specialized token logic (revocation, validity checks).
     """
 
-    async def get_by_token_id(self, token_id: str) -> Optional[Token]:
-        try:
-            stmt = select(self.model).where(self.model.token_id == token_id)
-            result = await self.session.execute(stmt)
-            token = result.scalars().first()
-            return token
-        except Exception as e:
-            logger.error(f"Error in get_by_token_id: {e}")
-            raise DBError(message=str(e))
-
-    async def get_by_user_id(self, user_id: int) -> list[Token]:
-        try:
-            stmt = select(self.model).where(self.model.user_id == user_id)
-            result = await self.session.execute(stmt)
-            tokens = result.scalars().all()
-            return tokens
-        except Exception as e:
-            logger.error(f"Error in get_by_user_id: {e}")
-            raise DBError(message=str(e))
-
-    async def get_refresh_token_for_user(self, user_id: int) -> Optional[Token]:
-        try:
-            now = datetime.now(timezone.utc)
-            stmt = (
-                select(self.model)
-                .where(
-                    self.model.user_id == user_id,
-                    self.model.token_type == TokenType.REFRESH,
-                    self.model.revoked == False,  # noqa: E712
-                    self.model.expires_at > now,
-                )
-                .order_by(self.model.created_at.desc())
-            )
-            result = await self.session.execute(stmt)
-            token = result.scalars().first()
-            return token
-        except Exception as e:
-            logger.error(f"Error in get_refresh_token_for_user: {e}")
-            raise DBError(message=str(e))
-
-    async def revoke_token_for_user(self, user_id: int, token_id: str) -> None:
-        try:
-            stmt = select(self.model).where(
-                self.model.user_id == user_id,
-                self.model.token_id == token_id,
-                self.model.revoked == False,  # noqa: E712
-            )
-            result = await self.session.execute(stmt)
-            token = result.scalars().first()
-            if token:
-                token.revoked = True
-                await self.session.flush()
-                logger.info(f"Revoked token {token_id} for user {user_id}")
-            else:
-                logger.warning(
-                    f"Token {token_id} for user {user_id} not found or already revoked"
-                )
-        except Exception as e:
-            logger.error(f"Error in revoke_token_for_user: {e}")
-            raise DBError(message=str(e))
-
-    async def revoke_all_for_user(
-        self, user_id: int, exclude_token_id: Optional[str] = None
-    ) -> None:
-        try:
-            conditions = [
-                self.model.user_id == user_id,
-                self.model.revoked == False,  # noqa: E712
-            ]
-            if exclude_token_id:
-                conditions.append(self.model.token_id != exclude_token_id)
-            from sqlalchemy import update as sqlalchemy_update
-
-            stmt = (
-                sqlalchemy_update(self.model.__table__)
-                .where(*conditions)
-                .values(revoked=True)
-            )
-            result = await self.session.execute(stmt)
-            await self.session.flush()
-            rows_affected = result.rowcount if hasattr(result, "rowcount") else -1
-            logger.info(f"Revoked {rows_affected} tokens for user {user_id}")
-        except Exception as e:
-            logger.error(f"Error in revoke_all_for_user: {e}")
-            raise DBError(message=str(e))
+    pass

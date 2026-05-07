@@ -54,7 +54,8 @@ def setup_logger(
     logger.setLevel(log_level)
 
     # Remove existing handlers
-    logger.handlers.clear()
+    if logger.hasHandlers():
+        logger.handlers.clear()
 
     # Create formatter
     formatter = JsonFormatter() if json_format else logging.Formatter(format)
@@ -66,6 +67,8 @@ def setup_logger(
 
     # Add handler to logger
     logger.addHandler(console_handler)
+
+    logger.propagate = False
 
     return logger
 
@@ -89,15 +92,25 @@ def get_logger(
     """
     # Safely check debug mode
     debug = False
-    if settings and hasattr(settings, "DEBUG"):
-        debug = bool(settings.DEBUG)
+    should_use_json = json_format
+    log_level = "INFO"
 
-    return setup_logger(name, debug=debug, json_format=json_format)
+    if settings:
+        if hasattr(settings, "DEBUG"):
+            debug = bool(settings.DEBUG)
+
+        if hasattr(settings, "LOG_JSON_FORMAT") and not json_format:
+            should_use_json = bool(settings.LOG_JSON_FORMAT)
+
+        if hasattr(settings, "LOG_LEVEL"):
+            log_level = settings.LOG_LEVEL
+
+    return setup_logger(name, level=log_level, debug=debug, json_format=should_use_json)
 
 
 def ensure_logger(
     logger: Optional[Logger] = None,
-    name: str = None,
+    name: Optional[str] = None,
     settings: Optional[BaseAppSettings] = None,
     json_format: bool = False,
 ) -> Logger:

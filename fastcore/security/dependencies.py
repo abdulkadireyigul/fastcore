@@ -1,497 +1,83 @@
 """
-Security dependencies for FastAPI.
+Legacy Security Dependencies Module (Integer-based).
 
-This module provides dependency functions for FastAPI applications
-to handle authentication and secure routes.
+This module initializes the security dependencies for the Legacy (Integer-based)
+token system. It uses the `BaseSecurityDependencies` factory, configuring it
+with the Legacy service implementation and an integer-based ID converter.
 
-Limitations:
-- Only password-based JWT authentication is included by default
-- No OAuth2 authorization code, implicit, or client credentials flows
-- No social login (Google, Facebook, etc.)
-- No multi-factor authentication
-- No user registration or management flows (only protocols/interfaces)
-- No advanced RBAC or permission system
-- No API key support
-- Stateless JWT blacklisting/revocation requires stateful DB tracking
+ARCHITECTURE NOTE
+-------------------------
+This module is intended for applications using the legacy `tokens` table
+with Integer IDs. If you are building a new feature or using the UUID system,
+please use `fastcore.security.tokens.uuid.dependencies` instead.
 """
 
-import os
-from typing import Any, Callable, Dict, Optional, TypeVar
+from typing import Any
 
-from fastapi import Depends, HTTPException, Request, Response, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from fastcore.db import get_db
+# Import the Legacy service implementation
+# (This implicitly loads the Legacy Integer Model, which is expected here)
+import fastcore.security.tokens.service as legacy_service
 from fastcore.errors.exceptions import (
     ExpiredTokenError,
     InvalidTokenError,
     RevokedTokenError,
 )
-from fastcore.security.manager import get_security_status
-from fastcore.security.tokens.models import TokenType
-from fastcore.security.tokens.service import (
-    refresh_access_token,
-    revoke_token,
-    validate_token,
+
+# Import the generic base class
+from fastcore.security.base_dependencies import BaseSecurityDependencies
+
+# from fastcore.security.tokens.service import (
+#     refresh_access_token,
+#     revoke_token,
+#     validate_token,
+# )
+
+# --- Configuration ---
+
+
+def _int_id_converter(user_id: Any) -> int:
+    """
+    Converts the token subject (user_id) to an integer.
+
+    The legacy system relies on Integer Primary Keys for users.
+    JWT 'sub' claims are strings, so we must cast them back to int.
+    """
+    return int(user_id)
+
+
+# --- Initialization ---
+
+# Create an instance of the dependencies factory injected with:
+# 1. The Legacy Service module (handling logic for Integer tokens)
+# 2. The Integer ID converter (handling type compatibility)
+_deps = BaseSecurityDependencies(
+    service_module=legacy_service, id_converter=_int_id_converter
 )
-from fastcore.security.users import UserAuthentication
 
-# OAuth2 password bearer scheme for token extraction
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-# Generic type for user models
-UserT = TypeVar("UserT")
+# --- Public Exports ---
+# We expose the bound methods directly for use in FastAPI `Depends()`.
 
+# 1. OAuth2 Scheme
+oauth2_scheme = _deps.oauth2_scheme
 
-async def get_token_data(
-    token: str = Depends(oauth2_scheme),
-    session: AsyncSession = Depends(get_db),
-    _: bool = Depends(get_security_status),
-    token_type: Optional[TokenType] = TokenType.ACCESS,
-) -> Dict[str, Any]:
-    """
-    Validate the access token and return its data.
+# 2. Token Validation Dependencies
+get_token_data = _deps.get_token_data
+get_refresh_token_data = _deps.get_refresh_token_data
 
-    Features:
-    - Extracts and validates JWT token from the request
-    - Supports stateful validation
+# 3. User Retrieval Dependency Factory
+# When calling this, pass a dependency that returns `UserAuthentication` (Legacy).
+get_current_user_dependency = _deps.get_current_user_dependency
 
-    Limitations:
-    - Only password-based JWT authentication is included by default
-    - No OAuth2/social login/multi-factor authentication
-    - No advanced RBAC or permission system
-    - No API key support
+# 4. Token Operations
+refresh_token = _deps.refresh_token
+logout_user = _deps.logout_user
 
-    Args:
-        token: The JWT token extracted from the Authorization header
-        session: Database session for stateful validation
-        _: Security status check (ensures security is initialized)
-        token_type: The expected token type (default: access)
+# 5. Cookie-Based Authentication
+get_token_data_from_cookie = _deps.get_token_data_from_cookie
+get_current_user_from_cookie_dependency = _deps.get_current_user_from_cookie_dependency
+logout_user_cookie = _deps.logout_user_cookie
 
-    Returns:
-        The decoded token payload if valid
-
-    Raises:
-        HTTPException: With appropriate status code if token is invalid
-    """
-    try:
-        return await validate_token(token, session, token_type)
-    except ExpiredTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "message": "Token has expired",
-                "details": getattr(e, "details", {}),
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except RevokedTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "message": "Token has been revoked",
-                "details": getattr(e, "details", {}),
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except InvalidTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"message": str(e), "details": getattr(e, "details", {})},
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-def get_current_user_dependency(
-    # auth_handler: UserAuthentication[UserT],
-    auth_handler_dependency: Callable = Depends(),
-) -> Callable[[Dict[str, Any]], UserT]:
-    """
-    Create a dependency function for getting the current authenticated user.
-
-    This factory function creates a dependency that works with any user model
-    through the provided authentication handler.
-
-    Args:
-        auth_handler_dependency: Dependency that provides UserAuthentication implementation
-
-    Returns:
-        A dependency function that returns the current authenticated user
-    """
-
-    async def current_user_dependency(
-        token_data: Dict[str, Any] = Depends(get_token_data),
-        auth_handler: UserAuthentication[UserT] = Depends(auth_handler_dependency),
-    ) -> UserT:
-        """
-        Get the current authenticated user from the token.
-
-        Args:
-            token_data: The validated token data
-            auth_handler: Authentication handler for user operations
-
-        Returns:
-            The user object
-
-        Raises:
-            HTTPException: If no valid user found
-        """
-        user_id = token_data.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token content",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        try:
-            if auth_handler is None:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Authentication handler is not initialized",
-                )
-
-            # Get the user using the provided authentication handler
-            user = await auth_handler.get_user_by_id(int(user_id))
-
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="User not found",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-
-            return user
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Could not validate user: {str(e)}",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-    return current_user_dependency
-
-
-async def get_refresh_token_data(
-    token: str,
-    session: AsyncSession = Depends(get_db),
-    _: bool = Depends(get_security_status),
-) -> Dict[str, Any]:
-    """
-    Validate a refresh token.
-
-    Args:
-        token: The refresh token to validate
-        session: Database session for token operations
-        _: Security status check (ensures security is initialized)
-
-    Returns:
-        The decoded token payload if valid
-
-    Raises:
-        HTTPException: If the token is invalid
-    """
-    try:
-        return await validate_token(token, session, TokenType.REFRESH)
-    except ExpiredTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "message": "Refresh token has expired",
-                "details": getattr(e, "details", {}),
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except RevokedTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "message": "Refresh token has been revoked",
-                "details": getattr(e, "details", {}),
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except InvalidTokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"message": str(e), "details": getattr(e, "details", {})},
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-async def refresh_token(
-    token: str,
-    session: AsyncSession = Depends(get_db),
-) -> str:
-    """
-    Create a new access token using a valid refresh token.
-
-    Args:
-        token: The refresh token to refresh
-        session: Database session for token operations
-
-    Returns:
-        A new access token
-    """
-    try:
-        # Validate and refresh the token
-        return await refresh_access_token(token, session)
-    except (InvalidTokenError, ExpiredTokenError, RevokedTokenError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"message": str(e), "details": getattr(e, "details", {})},
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-async def logout_user(
-    token: str = Depends(oauth2_scheme),
-    session: AsyncSession = Depends(get_db),
-    response: Response = None,
-) -> Dict[str, str]:
-    """
-    Revoke the current access token and clear any refresh token cookies.
-
-    Args:
-        token: The access token to revoke
-        session: Database session for token operations
-        response: FastAPI response object for cookie operations
-
-    Returns:
-        A success message
-    """
-    try:
-        # Revoke the current token
-        await revoke_token(token, session)
-
-        # Clear refresh and access token cookies if response object is provided
-        if response:
-            response.delete_cookie(
-                key="access_token", httponly=True, secure=True, samesite="strict"
-            )
-            response.delete_cookie(
-                key="refresh_token", httponly=True, secure=True, samesite="strict"
-            )
-
-        return {"message": "Successfully logged out"}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Logout failed: {str(e)}",
-        )
-
-
-# Cookie based functions
-
-
-async def get_token_data_from_cookie(
-    request: Request,
-    session: AsyncSession = Depends(get_db),
-    _: bool = Depends(get_security_status),
-    token_type: Optional[TokenType] = TokenType.ACCESS,
-) -> Dict[str, Any]:
-    """
-    Validate the token from an HTTP-only cookie and return its data.
-
-    This function is similar to `get_token_data` but extracts the token from
-    the 'access_token' cookie rather than the Authorization header.
-
-    Args:
-        request: The FastAPI request object containing the cookies.
-        session: Database session for stateful validation.
-        _: Security status check (ensures security is initialized).
-        token_type: The expected token type (default: access).
-
-    Returns:
-        The decoded token payload if valid.
-
-    Raises:
-        HTTPException: With status 401 if no token is found or if the token is invalid,
-                       expired, or revoked.
-    """
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No authentication token found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return await get_token_data(token, session, _, token_type)
-
-
-def get_current_user_from_cookie_dependency(
-    auth_handler_dependency: Callable = Depends(),
-) -> Callable[[Dict[str, Any]], UserT]:
-    """
-    Create a dependency function to get the current authenticated user from a cookie.
-
-    This factory function wraps `get_token_data_from_cookie` and `get_user_by_id`
-    to provide a dependency for securing endpoints that use cookie-based authentication.
-
-    Args:
-        auth_handler_dependency: The dependency that provides the UserAuthentication handler.
-
-    Returns:
-        A dependency function that returns the current authenticated user object.
-    """
-
-    async def current_user_from_cookie_dependency(
-        token_data: Dict[str, Any] = Depends(get_token_data_from_cookie),
-        auth_handler: UserAuthentication[UserT] = Depends(auth_handler_dependency),
-    ) -> UserT:
-        """
-        Get the current authenticated user from the token in a cookie.
-        """
-        # The logic here is identical to the original function
-        user_id = token_data.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token content",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        try:
-            user = await auth_handler.get_user_by_id(int(user_id))
-            if not user:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="User not found",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            return user
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Could not validate user: {str(e)}",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-    return current_user_from_cookie_dependency
-
-
-def set_auth_cookies(
-    response: Response,
-    access_token: str,
-    refresh_token: Optional[str] = None,
-    # secure: bool = True,
-    # max_age_access: int = 3600,  # 1 hour
-    # max_age_refresh: int = 86400 * 30,  # 30 days
-) -> None:
-    """
-    Set authentication cookies on the response with secure and HttpOnly flags.
-
-    This utility function is designed to be called from login and refresh endpoints
-    to securely store tokens on the client side.
-
-    Args:
-        response: The FastAPI response object to set the cookies on.
-        access_token: The JWT access token string.
-        refresh_token: The optional JWT refresh token string.
-    """
-    # Determine if the environment is development to set the secure flag
-    is_dev_env = os.getenv("APP_ENV") == "development"
-    secure = not is_dev_env
-
-    # Get expiration times from environment variables, with a fallback to defaults
-    access_token_expires_minutes = int(
-        os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-    )
-    refresh_token_expires_days = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7"))
-
-    # Calculate max_age in seconds
-    max_age_access = access_token_expires_minutes * 60
-    max_age_refresh = refresh_token_expires_days * 86400
-
-    if access_token:
-        response.set_cookie(
-            key="access_token",
-            value=access_token,
-            max_age=max_age_access,
-            httponly=True,
-            secure=secure,
-            samesite="none" if secure else "strict",
-        )
-
-    if refresh_token:
-        response.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            max_age=max_age_refresh,
-            httponly=True,
-            secure=secure,
-            samesite="none" if secure else "strict",
-        )
-
-
-async def logout_user_cookie(
-    request: Request,
-    session: AsyncSession = Depends(get_db),
-    response: Response = None,
-) -> Dict[str, str]:
-    """
-    Revoke the current access token from a cookie and clear authentication cookies.
-
-    This function retrieves the access token from the 'access_token' cookie,
-    revokes it, and then deletes both access and refresh token cookies from
-    the client's browser.
-
-    Args:
-        request: The FastAPI request object containing the cookies.
-        session: Database session for token operations.
-        response: FastAPI response object for cookie operations.
-
-    Returns:
-        A success message.
-
-    Raises:
-        HTTPException: With status 401 if no token is found in the cookie.
-        HTTPException: With status 500 if the logout operation fails.
-    """
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No authentication token found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    return await logout_user(token, session, response)
-
-
-async def remove_auth_cookies(
-    response: Response | None = None,
-) -> Dict[str, str]:
-    """
-    Remove the current access token and refresh token cookies.
-
-    Args:
-        response: FastAPI response object for cookie operations
-
-    Returns:
-        A success message
-    """
-    try:
-        # Determine if the environment is development to set the secure flag
-        is_dev_env = os.getenv("APP_ENV") == "development"
-        secure = not is_dev_env
-
-        # Clear refresh and access token cookies if response object is provided
-        if response:
-            response.delete_cookie(
-                key="access_token",
-                httponly=True,
-                secure=secure,
-                samesite="none" if secure else "strict",
-            )
-            response.delete_cookie(
-                key="refresh_token",
-                httponly=True,
-                secure=secure,
-                samesite="none" if secure else "strict",
-            )
-
-        return {"message": "Successfully removed the auth cookies"}
-    except Exception as e:
-        return {"message": "Failed to remove the auth cookies"}
+# 6. Utilities (Static Methods)
+set_auth_cookies = _deps.set_auth_cookies
+remove_auth_cookies = _deps.remove_auth_cookies

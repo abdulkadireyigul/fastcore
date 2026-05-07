@@ -14,6 +14,7 @@ import hashlib
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import orjson
 import pytest
 
 from fastcore.cache.decorators import cache
@@ -25,6 +26,7 @@ def mock_cache():
     mock = AsyncMock()
     mock.get = AsyncMock()
     mock.set = AsyncMock()
+    mock._logger = MagicMock()
     return mock
 
 
@@ -106,8 +108,22 @@ class TestCacheDecorator:
                 "kwargs": (("c", "3"),),
             }
             # key_str = json.dumps(key_data, default=str, sort_keys=True)
-            key_str = json.dumps(key_data, sort_keys=True)
-            key_hash = hashlib.sha256(key_str.encode()).hexdigest()
+            # key_str = json.dumps(key_data, sort_keys=True)
+            # key_hash = hashlib.sha256(key_str.encode()).hexdigest()
+
+            # Implementasyon orjson kullanıyor, test de orjson kullanmalı!
+            # orjson bytes döndürür.
+            if hasattr(orjson, "dumps"):
+                # orjson.dumps
+                key_bytes = orjson.dumps(key_data, option=orjson.OPT_SORT_KEYS)
+            else:
+                # json fallback (eğer orjson yüklü değilse)
+                # Implementasyonda json.dumps kullanılırsa separator farkı olabilir,
+                # ama biz orjson var sayıyoruz.
+                key_bytes = json.dumps(key_data, sort_keys=True).encode()
+
+            key_hash = hashlib.sha256(key_bytes).hexdigest()
+
             assert get_call_args[0].endswith(key_hash)
             # Key should be a hash
             assert len(get_call_args[0]) == 64

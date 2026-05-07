@@ -1,40 +1,60 @@
 """
-Token service for stateful JWT authentication.
+Legacy Token Service Module.
 
-This module provides business logic for token creation, validation, revocation, and refresh.
+This module provides the functional API for token operations, maintaining
+backward compatibility with the original design of the library.
 
-Limitations:
-- Only password-based JWT authentication is included by default
-- No OAuth2 authorization code, implicit, or client credentials flows
-- No social login (Google, Facebook, etc.)
-- No multi-factor authentication
-- No user registration or management flows (only protocols/interfaces)
-- No advanced RBAC or permission system
-- No API key support
-- Stateless JWT blacklisting/revocation requires stateful DB tracking
+While it preserves the old function signatures (e.g., `create_access_token`),
+it delegates all logic to the modern `BaseTokenService` implementation,
+ensuring consistent behavior, logging, and error handling across the system.
 """
 
-import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta
 from typing import Any, Dict, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastcore.config import get_settings
-from fastcore.errors.exceptions import (
-    DBError,
-    ExpiredTokenError,
-    InvalidTokenError,
-    RevokedTokenError,
-)
-from fastcore.logging.manager import ensure_logger
-from fastcore.schemas.response.token import TokenResponse
-from fastcore.security.tokens.models import Token, TokenType
+from fastcore.security.tokens.base_service import BaseTokenService
+from fastcore.security.tokens.models import Token
 from fastcore.security.tokens.repository import TokenRepository
+from fastcore.security.tokens.types import TokenType
 
-from .utils import decode_token, validate_jwt_stateless
+# --- Re-exports for Backward Compatibility ---
+# These utilities are re-exported here so that legacy code importing them
+# from `fastcore.security.tokens.service` continues to work without modification.
+from .utils import decode_token, encode_jwt, validate_jwt_stateless
 
-logger = ensure_logger(None, __name__)
+
+# --- Internal Implementation ---
+class _LegacyTokenService(BaseTokenService[Token]):
+    """
+    Internal concrete implementation of the TokenService for legacy Integer IDs.
+    It wires the `Token` model and `TokenRepository` to the generic base logic.
+    """
+
+    def __init__(self):
+        super().__init__(model_cls=Token, repo_cls=TokenRepository)
+
+    def _cast_user_id(self, user_id: Any) -> Any:
+        """
+        Override to enforce Integer IDs for legacy systems.
+
+        The JWT 'sub' claim is always a string. This method converts it back
+        to an integer to match the DB schema.
+        """
+        try:
+            return int(user_id)
+        except (ValueError, TypeError):
+            # If it can't be cast (e.g., already None or bad data),
+            # return as is and let the DB driver raise the error naturally.
+            return user_id
+
+
+# Singleton instance to handle functional API calls
+_service_impl = _LegacyTokenService()
+
+
+# --- Public Functional API ---
 
 
 async def create_token(
@@ -43,52 +63,21 @@ async def create_token(
     token_type: TokenType = TokenType.ACCESS,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
-    settings = get_settings()
-    token_id = str(uuid.uuid4())
-    to_encode = data.copy()
-    to_encode.update(
-        {
-            "jti": token_id,
-            "type": token_type,
-            "aud": settings.JWT_AUDIENCE,
-            "iss": settings.JWT_ISSUER,
-        }
-    )
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        if token_type == TokenType.ACCESS:
-            expire = datetime.now(timezone.utc) + timedelta(
-                minutes=settings.JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-            )
-        else:
-            expire = datetime.now(timezone.utc) + timedelta(
-                days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
-            )
-    now = datetime.now(timezone.utc)
-    to_encode.update({"exp": expire, "iat": now})
-    from .utils import encode_jwt
+    """
+    Create a new token for an integer-based user ID.
 
-    encoded_jwt = encode_jwt(to_encode)
-    try:
-        repo = TokenRepository(Token, session=session)
-        await repo.create(
-            {
-                "token_id": token_id,
-                "user_id": int(data.get("sub", -1)),
-                "token_type": token_type,
-                "expires_at": expire,
-            }
-        )
-        await session.commit()
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Error creating {token_type} token: {e}")
-        raise DBError(message=str(e))
-    logger.info(
-        f"Created {token_type} token {token_id} for user {data.get('sub', 'unknown')}"
+    Args:
+        data (Dict[str, Any]): Token payload (must include 'sub').
+        session (AsyncSession): Database session.
+        token_type (TokenType): Type of token to create (default: ACCESS).
+        expires_delta (Optional[timedelta]): Custom expiration time.
+
+    Returns:
+        str: The encoded JWT string.
+    """
+    return await _service_impl._create_token_impl(
+        data, session, token_type, expires_delta
     )
-    return encoded_jwt
 
 
 async def create_access_token(
@@ -96,6 +85,9 @@ async def create_access_token(
     session: AsyncSession,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
+    """
+    Helper function to create an ACCESS token.
+    """
     return await create_token(data, session, TokenType.ACCESS, expires_delta)
 
 
@@ -104,139 +96,63 @@ async def create_refresh_token(
     session: AsyncSession,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
+    """
+    Helper function to create a REFRESH token.
+    """
     return await create_token(data, session, TokenType.REFRESH, expires_delta)
 
 
 async def create_token_pair(
     data: Dict[str, Any],
     session: AsyncSession,
-) -> Dict[str, str]:
-    access_token = await create_access_token(data, session)
-    access_payload = decode_token(access_token)
-    access_expires_at = access_payload.get("exp")
-    if access_expires_at:
-        access_expires_at = datetime.fromtimestamp(access_expires_at, tz=timezone.utc)
-    else:
-        access_expires_at = datetime.now(timezone.utc) + timedelta(
-            minutes=get_settings().JWT_ACCESS_TOKEN_EXPIRE_MINUTES
-        )
-    access_expires_delta = access_expires_at - datetime.now(timezone.utc)
+) -> Dict[str, Any]:
+    """
+    Create both Access and Refresh tokens for a user.
 
-    refresh_token = await create_refresh_token(data, session)
-    refresh_payload = decode_token(refresh_token)
-    refresh_expires_at = refresh_payload.get("exp")
-
-    if refresh_expires_at:
-        refresh_expires_at = datetime.fromtimestamp(refresh_expires_at, tz=timezone.utc)
-    else:
-        refresh_expires_at = datetime.now(timezone.utc) + timedelta(
-            days=get_settings().JWT_REFRESH_TOKEN_EXPIRE_DAYS
-        )
-    refresh_expires_delta = refresh_expires_at - datetime.now(timezone.utc)
-
-    logger.info(
-        f"Created access token {access_token} and refresh token {refresh_token} for user {data.get('sub', 'unknown')}"
-    )
-
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        access_expires_in=int(access_expires_delta.total_seconds()),
-        refresh_expires_in=int(refresh_expires_delta.total_seconds()),
-        token_type="bearer",
-    ).dict()
+    Returns:
+        Dict[str, Any]: Dictionary containing tokens and expiry info.
+    """
+    return await _service_impl._create_token_pair_impl(data, session)
 
 
 async def validate_token(
     token: str, session: AsyncSession, token_type: Optional[TokenType] = None
 ) -> Dict[str, Any]:
-    try:
-        payload = await validate_jwt_stateless(token, token_type)
-        token_id = payload["jti"]
-        repo = TokenRepository(Token, session=session)
-        token_record = await repo.get_by_token_id(token_id)
-        if not token_record:
-            raise InvalidTokenError(
-                message="Token not found in database", details={"token_id": token_id}
-            )
-        if token_record.revoked:
-            raise RevokedTokenError(
-                details={"token_id": token_id, "revoked_at": token_record.updated_at}
-            )
-        return payload
-    except (InvalidTokenError, ExpiredTokenError, RevokedTokenError):
-        raise
-    except Exception as e:
-        logger.error(f"Error in stateful token validation: {e}")
-        raise InvalidTokenError(
-            message="Token validation failed", details={"error": str(e)}
-        )
+    """
+    Validate a token string against the database (Stateful Check).
+
+    Args:
+        token (str): The JWT string.
+        session (AsyncSession): Database session.
+        token_type (Optional[TokenType]): Expected token type.
+
+    Returns:
+        Dict[str, Any]: The decoded token payload.
+
+    Raises:
+        InvalidTokenError: If validation fails.
+    """
+    return await _service_impl._validate_token_impl(
+        token, session, token_type=token_type
+    )
 
 
 async def refresh_access_token(refresh_token: str, session: AsyncSession) -> str:
-    try:
-        payload = await validate_token(refresh_token, session, TokenType.REFRESH)
-        user_id = payload.get("sub")
-        if not user_id:
-            raise InvalidTokenError(message="Invalid token content")
-        access_token = await create_access_token({"sub": user_id}, session)
-        logger.info(f"Created new access token for user {user_id} via refresh")
-        return access_token
-    except (InvalidTokenError, ExpiredTokenError, RevokedTokenError):
-        raise
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Error refreshing access token: {e}")
-        raise DBError(
-            message=f"Error refreshing access token", details={"error": str(e)}
-        )
+    """
+    Issue a new access token using a valid refresh token.
+    """
+    return await _service_impl._refresh_access_token_impl(refresh_token, session)
 
 
 async def revoke_token(token: str, session: AsyncSession) -> None:
-    try:
-        payload = decode_token(token)
-        token_id = payload.get("jti")
-        user_id = payload.get("sub")
-        if not token_id:
-            raise InvalidTokenError(
-                message="Token missing required 'jti' claim",
-                details={"error": "Missing jti claim"},
-            )
-        if not user_id:
-            raise InvalidTokenError(
-                message="Token missing required 'sub' claim",
-                details={"error": "Missing sub claim"},
-            )
-        repo = TokenRepository(Token, session=session)
-        token_record = await repo.get_by_token_id(token_id)
-        if not token_record:
-            raise InvalidTokenError(
-                message="Token not found in database", details={"token_id": token_id}
-            )
-        if token_record.revoked:
-            logger.info(f"Token {token_id} already revoked")
-            return
-        await repo.revoke_token_for_user(int(user_id), token_id)
-        await session.commit()
-        logger.info(f"Successfully revoked token {token_id}")
-    except InvalidTokenError:
-        raise
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Error revoking token: {e}")
-        raise DBError(message=f"Error revoking token", details={"error": str(e)})
+    """
+    Revoke a single token by its JTI.
+    """
+    await _service_impl._revoke_token_impl(token, session)
 
 
 async def revoke_all_tokens_for_user(user_id: int, session: AsyncSession) -> None:
     """
-    Revoke all tokens for a given user.
+    Revoke all tokens belonging to a specific user ID (Integer).
     """
-    try:
-        repo = TokenRepository(Token, session=session)
-        await repo.revoke_all_for_user(user_id)
-        await session.commit()
-        logger.info(f"Revoked all tokens for user {user_id}")
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Error revoking all tokens for user {user_id}: {e}")
-        raise DBError(message=f"Error revoking all tokens", details={"error": str(e)})
+    await _service_impl._revoke_all_for_user_impl(user_id, session)

@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import HTTPException, Request, Response
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
 from fastcore.db.base import BaseModel
@@ -20,20 +20,38 @@ from fastcore.errors.exceptions import (
     RevokedTokenError,
 )
 from fastcore.security import dependencies
+from fastcore.security.tokens.models import Token
+from fastcore.security.tokens.types import TokenType
+from fastcore.security.tokens.uuid.models import UUIDToken
 from fastcore.security.users import UserAuthentication
 
 
-class User(BaseModel):
-    __tablename__ = "users"
+class SecurityTestUser(BaseModel):
+    __tablename__ = "security_test_users"
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, index=True)
     # tokens = relationship("Token",  back_populates="user")
-    tokens = relationship("Token", cascade="all, delete-orphan", back_populates="user")
+    # tokens = relationship("Token", cascade="all, delete-orphan", back_populates="user")
+    legacy_tokens = relationship(
+        "Token", back_populates="user", cascade="all, delete-orphan"
+    )
+    new_uuid_tokens = relationship(
+        "UUIDToken", back_populates="user", cascade="all, delete-orphan"
+    )
     __table_args__ = {"extend_existing": True}
 
 
+legacy_user_id_col = Token.__table__.c.user_id
+legacy_user_id_col.foreign_keys.clear()
+legacy_user_id_col.append_foreign_key(ForeignKey("security_test_users.id"))
+Token.user = relationship("SecurityTestUser", back_populates="legacy_tokens")
+
+UUIDToken.__tablename__ = "skipped_uuid_tokens_test"
+UUIDToken.__table_args__ = {"extend_existing": True}
+UUIDToken.user = relationship("SecurityTestUser", viewonly=True, foreign_keys=[])
+
 # from fastcore.security.models import Token, TokenType
-from fastcore.security.tokens.models import Token, TokenType
+# from fastcore.security.tokens.models import Token, TokenType
 from tests.conftest import assert_http_exc
 
 # Use shared dummy_session and dummy_settings fixtures from conftest.py where needed
@@ -103,7 +121,7 @@ def test_token_model_properties():
 @pytest.mark.asyncio
 async def test_get_token_data_success():
     with patch(
-        "fastcore.security.dependencies.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         return_value={"sub": "user1"},
     ):
@@ -116,7 +134,7 @@ async def test_get_token_data_success():
 @pytest.mark.asyncio
 async def test_get_token_data_expired():
     with patch(
-        "fastcore.security.dependencies.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.ExpiredTokenError(),
     ):
@@ -128,7 +146,7 @@ async def test_get_token_data_expired():
 @pytest.mark.asyncio
 async def test_get_token_data_revoked():
     with patch(
-        "fastcore.security.dependencies.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.RevokedTokenError(),
     ):
@@ -140,7 +158,7 @@ async def test_get_token_data_revoked():
 @pytest.mark.asyncio
 async def test_get_token_data_invalid():
     with patch(
-        "fastcore.security.dependencies.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.InvalidTokenError("fail"),
     ):
@@ -191,7 +209,7 @@ async def test_get_current_user_dependency_exception():
 @pytest.mark.asyncio
 async def test_get_refresh_token_data_success():
     with patch(
-        "fastcore.security.dependencies.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         return_value={"sub": "user1"},
     ):
@@ -204,7 +222,7 @@ async def test_get_refresh_token_data_success():
 @pytest.mark.asyncio
 async def test_get_refresh_token_data_expired():
     with patch(
-        "fastcore.security.dependencies.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.ExpiredTokenError(),
     ):
@@ -218,7 +236,7 @@ async def test_get_refresh_token_data_expired():
 @pytest.mark.asyncio
 async def test_get_refresh_token_data_revoked():
     with patch(
-        "fastcore.security.dependencies.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.RevokedTokenError(),
     ):
@@ -232,7 +250,7 @@ async def test_get_refresh_token_data_revoked():
 @pytest.mark.asyncio
 async def test_get_refresh_token_data_invalid():
     with patch(
-        "fastcore.security.dependencies.validate_token",
+        "fastcore.security.tokens.service.validate_token",
         new_callable=AsyncMock,
         side_effect=dependencies.InvalidTokenError("fail"),
     ):
@@ -246,7 +264,7 @@ async def test_get_refresh_token_data_invalid():
 @pytest.mark.asyncio
 async def test_refresh_token_success():
     with patch(
-        "fastcore.security.dependencies.refresh_access_token",
+        "fastcore.security.tokens.service.refresh_access_token",
         new_callable=AsyncMock,
         return_value="newtoken",
     ):
@@ -257,7 +275,7 @@ async def test_refresh_token_success():
 @pytest.mark.asyncio
 async def test_refresh_token_error():
     with patch(
-        "fastcore.security.dependencies.refresh_access_token",
+        "fastcore.security.tokens.service.refresh_access_token",
         new_callable=AsyncMock,
         side_effect=dependencies.InvalidTokenError("fail"),
     ):
@@ -269,7 +287,7 @@ async def test_refresh_token_error():
 # @pytest.mark.asyncio
 # async def test_logout_user_success():
 #     with patch(
-#         "fastcore.security.dependencies.revoke_token", new_callable=AsyncMock
+#         "fastcore.security.tokens.service.revoke_token", new_callable=AsyncMock
 #     ) as mock_revoke:
 #         response = MagicMock()
 #         result = await dependencies.logout_user(
@@ -285,7 +303,7 @@ async def test_refresh_token_error():
 @pytest.mark.asyncio
 async def test_logout_user_error():
     with patch(
-        "fastcore.security.dependencies.revoke_token",
+        "fastcore.security.tokens.service.revoke_token",
         new_callable=AsyncMock,
         side_effect=Exception("fail"),
     ):
@@ -366,7 +384,9 @@ async def test_get_token_data_from_cookie_valid_token(
     """Test successful token validation from cookie."""
     expected_token_data = {"sub": "123", "exp": 1234567890}
 
-    with patch("fastcore.security.dependencies.get_token_data") as mock_get_token_data:
+    with patch(
+        "fastcore.security.base_dependencies.BaseSecurityDependencies.get_token_data"
+    ) as mock_get_token_data:
         mock_get_token_data.return_value = expected_token_data
 
         result = await get_token_data_from_cookie(
@@ -439,7 +459,9 @@ async def test_get_token_data_from_cookie_refresh_token_type(
     """Test with refresh token type."""
     expected_token_data = {"sub": "123", "type": "refresh"}
 
-    with patch("fastcore.security.dependencies.get_token_data") as mock_get_token_data:
+    with patch(
+        "fastcore.security.base_dependencies.BaseSecurityDependencies.get_token_data"
+    ) as mock_get_token_data:
         mock_get_token_data.return_value = expected_token_data
 
         result = await get_token_data_from_cookie(
@@ -460,7 +482,9 @@ async def test_get_token_data_from_cookie_exception_propagation(
     mock_request, mock_session, mock_security_status
 ):
     """Test that token validation exceptions are properly propagated."""
-    with patch("fastcore.security.dependencies.get_token_data") as mock_get_token_data:
+    with patch(
+        "fastcore.security.base_dependencies.BaseSecurityDependencies.get_token_data"
+    ) as mock_get_token_data:
         mock_get_token_data.side_effect = HTTPException(
             status_code=401, detail="Token expired"
         )
@@ -479,7 +503,7 @@ async def test_get_token_data_from_cookie_exception_propagation(
 async def test_get_current_user_from_cookie_dependency_success(mock_auth_handler):
     """Test successful user retrieval from cookie token."""
     token_data = {"sub": "123", "exp": 1234567890}
-    test_user = User(id=123, username="testuser")
+    test_user = SecurityTestUser(id=123, username="testuser")
     mock_auth_handler.get_user_by_id.return_value = test_user
 
     mock_auth_handler_dependency = Mock(return_value=mock_auth_handler)
@@ -729,7 +753,9 @@ async def test_logout_user_cookie_success(mock_request, mock_session, mock_respo
     """Test successful logout with token revocation and cookie clearing."""
     expected_result = {"message": "Successfully logged out"}
 
-    with patch("fastcore.security.dependencies.logout_user") as mock_logout_user:
+    with patch(
+        "fastcore.security.base_dependencies.BaseSecurityDependencies.logout_user"
+    ) as mock_logout_user:
         mock_logout_user.return_value = expected_result
 
         result = await logout_user_cookie(
@@ -792,7 +818,9 @@ async def test_logout_user_cookie_without_response(mock_request, mock_session):
     """Test logout without providing response object."""
     expected_result = {"message": "Successfully logged out"}
 
-    with patch("fastcore.security.dependencies.logout_user") as mock_logout_user:
+    with patch(
+        "fastcore.security.base_dependencies.BaseSecurityDependencies.logout_user"
+    ) as mock_logout_user:
         mock_logout_user.return_value = expected_result
 
         result = await logout_user_cookie(
@@ -808,7 +836,9 @@ async def test_logout_user_cookie_exception_propagation(
     mock_request, mock_session, mock_response
 ):
     """Test that exceptions from logout_user are properly propagated."""
-    with patch("fastcore.security.dependencies.logout_user") as mock_logout_user:
+    with patch(
+        "fastcore.security.base_dependencies.BaseSecurityDependencies.logout_user"
+    ) as mock_logout_user:
         mock_logout_user.side_effect = HTTPException(
             status_code=401, detail="Token already revoked"
         )
@@ -852,10 +882,12 @@ async def test_full_cookie_auth_flow():
 
     # Step 3: Validate token from cookie
     expected_token_data = {"sub": "123", "exp": 1234567890}
-    test_user = User(id=123, username="testuser")
+    test_user = SecurityTestUser(id=123, username="testuser")
     mock_auth_handler.get_user_by_id.return_value = test_user
 
-    with patch("fastcore.security.dependencies.get_token_data") as mock_get_token_data:
+    with patch(
+        "fastcore.security.base_dependencies.BaseSecurityDependencies.get_token_data"
+    ) as mock_get_token_data:
         mock_get_token_data.return_value = expected_token_data
 
         # Get token data from cookie
@@ -886,7 +918,9 @@ async def test_cookie_logout_flow():
 
     expected_result = {"message": "Successfully logged out"}
 
-    with patch("fastcore.security.dependencies.logout_user") as mock_logout_user:
+    with patch(
+        "fastcore.security.base_dependencies.BaseSecurityDependencies.logout_user"
+    ) as mock_logout_user:
         mock_logout_user.return_value = expected_result
 
         result = await logout_user_cookie(mock_request, mock_session, mock_response)

@@ -2,16 +2,17 @@ from typing import Any, Dict, Optional
 
 import jwt  # type: ignore
 
-from fastcore.config import get_settings
+# from fastcore.config import get_settings
 from fastcore.errors.exceptions import ExpiredTokenError, InvalidTokenError
 from fastcore.logging.manager import ensure_logger
-from fastcore.security.tokens.models import TokenType
+from fastcore.security.manager import get_security_settings
+from fastcore.security.tokens.types import TokenType
 
 logger = ensure_logger(None, __name__)
 
 
 def encode_jwt(payload: Dict[str, Any]) -> str:
-    settings = get_settings()
+    settings = get_security_settings()
     return jwt.encode(
         payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
     )
@@ -23,7 +24,7 @@ def decode_token(token: str) -> Dict[str, Any]:
     This function only decodes the token to access its payload,
     without validating if the token is valid, revoked, or expired.
     """
-    settings = get_settings()
+    settings = get_security_settings()
     try:
         payload = jwt.decode(
             token,
@@ -45,7 +46,7 @@ async def validate_jwt_stateless(
     """
     Validate JWT token stateless properties (signature, claims, expiration).
     """
-    settings = get_settings()
+    settings = get_security_settings()
     try:
         audience = settings.JWT_ALLOWED_AUDIENCES or settings.JWT_AUDIENCE
         payload = jwt.decode(

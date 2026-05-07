@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "fastcore"
-version = "0.1.0"
+version = "0.2.0"
 description = "Core utilities for FastAPI applications"
 authors = ["Abdulkadir Eyigül <abdulkadireyigul@gmail.com>"]
 readme = "README.md"
@@ -15,17 +15,19 @@ packages = [{ include = "fastcore" }]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<4.0"
-fastapi = "^0.100.0"
+fastapi = "^0.123.0"
 pydantic = "^2.10.6"
 pydantic-settings = "^2.8.1"
 typing-extensions = ">=4.5.0,<5.0.0"
 sqlalchemy = "^2.0.0"
 asyncpg = "^0.30.0"
-pyjwt = "^2.7.0"
+pyjwt = "^2.10.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 bcrypt = "^4.3.0"
 redis = "^5.0.0"
 prometheus-client = "^0.21.1"
+orjson = "^3.11.4"
+uuid6 = "^2025.0.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.9.1"
