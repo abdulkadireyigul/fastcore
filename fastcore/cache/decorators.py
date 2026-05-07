@@ -2,7 +2,7 @@ import functools
 import hashlib
 import inspect
 import logging
-from typing import Any, Callable, List, Optional, Type, get_type_hints
+from typing import Any, Callable, List, Optional, Tuple, Type, get_type_hints
 
 import orjson
 
@@ -56,6 +56,36 @@ def _make_key(func: Callable, args: tuple, kwargs: dict, prefix: str = "") -> st
     return f"{prefix}{key_hash}"
 
 
+def _to_serializable(obj: Any) -> Any:
+    """
+    Recursively convert an object into a JSON-serializable form.
+
+    Handles Pydantic v2 models, dicts, lists, and tuples at any nesting depth.
+    Tuples are serialized as JSON arrays; tuple-ness is recovered from the
+    function's return-type annotation on read.
+
+    The list/tuple branch uses an inline fast-path: Pydantic models and
+    primitives are handled without a recursive call, so a list of N models
+    costs O(1) function frames rather than O(N). Recursion is only incurred
+    for genuinely nested containers (dict/list/tuple elements).
+    """
+    if hasattr(obj, "model_dump"):
+        return obj.model_dump(mode="json")
+    elif isinstance(obj, dict):
+        return {k: _to_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        result = []
+        for item in obj:
+            if hasattr(item, "model_dump"):
+                result.append(item.model_dump(mode="json"))
+            elif isinstance(item, (dict, list, tuple)):
+                result.append(_to_serializable(item))
+            else:
+                result.append(item)
+        return result
+    return obj
+
+
 def cache(
     ttl: Optional[int] = None, prefix: Optional[str] = None, return_raw: bool = False
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
@@ -71,9 +101,11 @@ def cache(
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
-        # Analyze return type to handle Pydantic models correctly
+        # Analyze return type once at decoration time to drive read-side reconstruction.
         model_type: Optional[Type[Any]] = None
         is_list = False
+        is_tuple = False
+        tuple_item_types: Tuple[Any, ...] = ()
 
         try:
             # Use get_type_hints to resolve string forward references (e.g. "User")
@@ -81,16 +113,20 @@ def cache(
             return_type = type_hints.get("return")
 
             if return_type:
-                # Check for List[Model]
                 origin = getattr(return_type, "__origin__", None)
-                if origin in (list, List):
-                    # Extract the inner type from List[Type]
+
+                if origin is tuple:
+                    # e.g. tuple[list[Model], int] or Tuple[List[Model], int]
+                    is_tuple = True
+                    tuple_item_types = getattr(return_type, "__args__", ()) or ()
+                elif origin in (list, List):
+                    # e.g. list[Model] or List[Model]
                     args = getattr(return_type, "__args__", [])
                     if args and hasattr(args[0], "model_validate"):
                         model_type = args[0]
                         is_list = True
-                # Check for Single Model
                 elif hasattr(return_type, "model_validate"):
+                    # Single Pydantic model
                     model_type = return_type
         except Exception:
             # If type resolution fails, proceed without automatic Pydantic validation
@@ -124,6 +160,32 @@ def cache(
                     return cached
 
                 # --- COMPATIBILITY MODE (Pydantic Validation) ---
+
+                # Tuple reconstruction: stored as a JSON array, restore per-position.
+                if is_tuple and isinstance(cached, list) and tuple_item_types:
+                    try:
+                        reconstructed = []
+                        for elem, hint in zip(cached, tuple_item_types):
+                            hint_origin = getattr(hint, "__origin__", None)
+                            if hint_origin in (list, List):
+                                inner_args = getattr(hint, "__args__", [None])
+                                inner = inner_args[0] if inner_args else None
+                                if inner and hasattr(inner, "model_validate"):
+                                    reconstructed.append(
+                                        [inner.model_validate(item) for item in elem]
+                                    )
+                                else:
+                                    reconstructed.append(elem)
+                            elif hasattr(hint, "model_validate"):
+                                reconstructed.append(hint.model_validate(elem))
+                            else:
+                                # Primitive (int, str, float, …) — pass through as-is
+                                reconstructed.append(elem)
+                        return tuple(reconstructed)
+                    except Exception:
+                        # If reconstruction fails (schema change), treat as cache miss
+                        pass
+
                 if model_type:
                     try:
                         if is_list and isinstance(cached, list):
@@ -141,20 +203,7 @@ def cache(
 
             # 5. Write to Cache (SET)
             try:
-                to_cache = result
-                # Serialize Pydantic models to dicts before storage
-                if hasattr(result, "model_dump"):
-                    # Pydantic v2
-                    to_cache = result.model_dump(mode="json")
-                elif (
-                    isinstance(result, list)
-                    and result
-                    and hasattr(result[0], "model_dump")
-                ):
-                    to_cache = [item.model_dump(mode="json") for item in result]
-
-                # Backend handles serialization (orjson)
-                await cache_instance.set(full_key, to_cache, ttl=ttl)
+                await cache_instance.set(full_key, _to_serializable(result), ttl=ttl)
             except Exception as e:
                 # Fail-Silent: Log error but do not raise exception
                 logger = getattr(cache_instance, "_logger", None)
