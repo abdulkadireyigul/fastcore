@@ -45,8 +45,6 @@ RATE_LIMITING_BACKEND="redis"
 # Monitoring configuration
 HEALTH_PATH="/health"
 HEALTH_INCLUDE_DETAILS=true
-METRICS_PATH="/metrics"
-METRICS_EXCLUDE_PATHS='["/metrics", "/health"]'
 
 For a full example, see the env.example file in your main FastAPI project root.
 """

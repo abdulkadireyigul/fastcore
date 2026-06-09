@@ -14,10 +14,8 @@ Limitations:
 
 from fastcore.monitoring.health import setup_health_endpoint
 from fastcore.monitoring.manager import setup_monitoring
-from fastcore.monitoring.metrics import setup_metrics_endpoint
 
 __all__ = [
     "setup_monitoring",
     "setup_health_endpoint",
-    "setup_metrics_endpoint",
 ]

@@ -45,8 +45,6 @@ class BaseAppSettings(BaseSettings):
         RATE_LIMITING_BACKEND: Rate limiting backend: "memory" or "redis"
         HEALTH_PATH: Health check endpoint path
         HEALTH_INCLUDE_DETAILS: Include detailed health check info in response
-        METRICS_PATH: Prometheus metrics endpoint path
-        METRICS_EXCLUDE_PATHS: List of paths to exclude from metrics collection
     """
 
     APP_NAME: str = Field(default="FastCore")
@@ -154,17 +152,6 @@ class BaseAppSettings(BaseSettings):
     )
     HEALTH_INCLUDE_DETAILS: bool = Field(
         default=True, description="Include detailed health check info in response"
-    )
-    METRICS_PATH: str = Field(
-        default="/metrics", description="Prometheus metrics endpoint path"
-    )
-    METRICS_EXCLUDE_PATHS: List[str] = Field(
-        default=["/metrics", "/health"],
-        description="List of paths to exclude from metrics collection",
-    )
-    METRICS_GROUP_PATHS: bool = Field(
-        default=False,
-        description="Whether to group paths by FastAPI route patterns in metrics (e.g. /items/{id}) instead of raw URLs. This keeps Prometheus cardinality low when path parameters contain dynamic values like UUIDs. Defaults to False to preserve backwards-compatible behaviour — opt in explicitly via METRICS_GROUP_PATHS=true in settings.",
     )
 
     @field_validator("JWT_AUDIENCE", "JWT_ISSUER", mode="before")

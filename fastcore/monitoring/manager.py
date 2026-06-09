@@ -12,7 +12,6 @@ from fastapi import FastAPI
 from fastcore.config.base import BaseAppSettings
 from fastcore.logging import Logger, ensure_logger
 from fastcore.monitoring.health import setup_health_endpoint
-from fastcore.monitoring.metrics import setup_metrics_endpoint
 
 
 def setup_monitoring(
@@ -57,8 +56,5 @@ def setup_monitoring(
     # Setup each monitoring component as configured
     # if health_enabled:
     setup_health_endpoint(app, settings, log)
-
-    # if metrics_enabled:
-    setup_metrics_endpoint(app, settings, log)
 
     log.info("Monitoring configured successfully")

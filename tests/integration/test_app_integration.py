@@ -47,14 +47,6 @@ def test_health_endpoint(client):
     assert (data and "status" in data) or metadata is not None
 
 
-def test_metrics_endpoint(client):
-    resp = client.get("/metrics")
-    assert resp.status_code == 200
-    assert "http_requests_total" in resp.text
-    assert "fastapi_app_info" in resp.text
-    assert "http_requests_in_progress" in resp.text
-
-
 def test_cors_headers(client):
     resp = client.options(
         "/health",
@@ -173,28 +165,7 @@ def test_custom_exception_handler(client):
         assert resp.json()["detail"] == "I'm a teapot"
 
 
-def test_metrics_endpoint_error(client, monkeypatch):
-    from fastcore.monitoring import metrics
-
-    monkeypatch.setattr(
-        metrics,
-        "generate_latest",
-        lambda *a, **kw: (_ for _ in ()).throw(Exception("metrics fail")),
-    )
-    resp = client.get("/metrics")
-    assert resp.status_code in (500, 503, 429)
-
-
 def test_rate_limiting_memory_edge(client, monkeypatch):
-    import prometheus_client
-
-    # Unregister all collectors to avoid duplicated timeseries error
-    collectors = list(prometheus_client.REGISTRY._names_to_collectors.values())
-    for collector in collectors:
-        try:
-            prometheus_client.REGISTRY.unregister(collector)
-        except Exception:
-            pass
     from fastcore.middleware.rate_limiting import SimpleRateLimitMiddleware
 
     logger = ensure_logger(None, __name__)

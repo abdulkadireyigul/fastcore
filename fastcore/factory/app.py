@@ -57,5 +57,5 @@ def configure_app(app: FastAPI, settings: Optional[BaseAppSettings] = None) -> N
     setup_security(app, app_settings, logger)
     # Configure middleware (CORS, rate limiting, etc.)
     setup_middlewares(app, app_settings, logger)
-    # Configure monitoring (health checks, metrics, etc.)
+    # Configure monitoring (health checks, etc.)
     setup_monitoring(app, app_settings, logger)

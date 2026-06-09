@@ -228,83 +228,8 @@ def test_setup_monitoring(monkeypatch):
         "fastcore.monitoring.manager.setup_health_endpoint",
         lambda *a, **kw: called.setdefault("health", True),
     )
-    monkeypatch.setattr(
-        "fastcore.monitoring.manager.setup_metrics_endpoint",
-        lambda *a, **kw: called.setdefault("metrics", True),
-    )
     from fastcore.monitoring.manager import setup_monitoring
 
     setup_monitoring(app, settings, logger)
     assert called["health"]
-    assert called["metrics"]
-    logger.info.assert_called()
-
-
-# --- metrics.py tests ---
-# import types
-from fastcore.monitoring.metrics import PrometheusMiddleware, setup_metrics_endpoint
-
-# from prometheus_client import REGISTRY
-
-
-@pytest.mark.asyncio
-async def test_prometheus_middleware_excluded_path():
-    app = MagicMock(spec=FastAPI)
-    middleware = PrometheusMiddleware(app, exclude_paths=["/skip"])
-    request = MagicMock()
-    request.url.path = "/skip"
-    request.method = "GET"
-    call_next = AsyncMock(return_value="resp")
-    result = await middleware.dispatch(request, call_next)
-    assert result == "resp"
-
-
-@pytest.mark.asyncio
-async def test_prometheus_middleware_normal(monkeypatch):
-    app = MagicMock(spec=FastAPI)
-    middleware = PrometheusMiddleware(app)
-    request = MagicMock()
-    request.url.path = "/foo"
-    request.method = "GET"
-    call_next = AsyncMock(return_value=MagicMock(status_code=200))
-    # Patch prometheus metrics to avoid side effects
-    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_IN_PROGRESS", MagicMock())
-    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_LATENCY", MagicMock())
-    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_COUNT", MagicMock())
-    monkeypatch.setattr("fastcore.monitoring.metrics.EXCEPTIONS_COUNT", MagicMock())
-    result = await middleware.dispatch(request, call_next)
-    assert result.status_code == 200
-
-
-@pytest.mark.asyncio
-async def test_prometheus_middleware_exception(monkeypatch):
-    app = MagicMock(spec=FastAPI)
-    middleware = PrometheusMiddleware(app)
-    request = MagicMock()
-    request.url.path = "/foo"
-    request.method = "GET"
-
-    def raise_exc(*a, **kw):
-        raise ValueError("fail")
-
-    call_next = AsyncMock(side_effect=raise_exc)
-    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_IN_PROGRESS", MagicMock())
-    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_LATENCY", MagicMock())
-    monkeypatch.setattr("fastcore.monitoring.metrics.REQUEST_COUNT", MagicMock())
-    monkeypatch.setattr("fastcore.monitoring.metrics.EXCEPTIONS_COUNT", MagicMock())
-    with pytest.raises(ValueError):
-        await middleware.dispatch(request, call_next)
-
-
-def test_setup_metrics_endpoint(monkeypatch):
-    app = MagicMock(spec=FastAPI)
-    settings = MagicMock()
-    settings.METRICS_PATH = "/metrics"
-    settings.METRICS_EXCLUDE_PATHS = ["/metrics", "/health"]
-    logger = MagicMock()
-    monkeypatch.setattr("fastcore.monitoring.metrics.PrometheusMiddleware", MagicMock())
-    monkeypatch.setattr("fastcore.monitoring.metrics.Gauge", MagicMock())
-    setup_metrics_endpoint(app, settings, logger)
-    app.add_middleware.assert_called()
-    app.include_router.assert_called()
     logger.info.assert_called()

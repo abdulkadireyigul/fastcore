@@ -50,7 +50,7 @@ class MyAppSettings(BaseAppSettings):
     # Add custom settings
     FEATURE_FLAG_ENABLED: bool = False
     MAX_ITEMS_PER_PAGE: int = 100
-    
+
     # Override base settings
     APP_NAME: str = "My Custom App"
 ```
@@ -123,8 +123,6 @@ Common environment variables (see .env.example file in this module):
 - `RATE_LIMITING_BACKEND`: "memory" or "redis"
 - `HEALTH_PATH`: Health check endpoint path
 - `HEALTH_INCLUDE_DETAILS`: Include detailed health info (true/false)
-- `METRICS_PATH`: Prometheus metrics endpoint path
-- `METRICS_EXCLUDE_PATHS`: JSON list of paths to exclude from metrics
 - `APP_ENV`: Set to `development`, `production`, or `testing` to select environment
 
 > Note: The default `get_settings()` always returns the built-in environment-specific settings. To use your own settings class globally, pass it to the factory or use your own dependency injection function as shown above.

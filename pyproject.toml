@@ -25,7 +25,6 @@ pyjwt = "^2.10.1"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 bcrypt = "^4.3.0"
 redis = "^5.0.0"
-prometheus-client = "^0.21.1"
 orjson = "^3.11.4"
 uuid6 = "^2025.0.1"
 
