@@ -162,6 +162,10 @@ class BaseAppSettings(BaseSettings):
         default=["/metrics", "/health"],
         description="List of paths to exclude from metrics collection",
     )
+    METRICS_GROUP_PATHS: bool = Field(
+        default=False,
+        description="Whether to group paths by FastAPI route patterns in metrics (e.g. /items/{id}) instead of raw URLs. This keeps Prometheus cardinality low when path parameters contain dynamic values like UUIDs. Defaults to False to preserve backwards-compatible behaviour — opt in explicitly via METRICS_GROUP_PATHS=true in settings.",
+    )
 
     @field_validator("JWT_AUDIENCE", "JWT_ISSUER", mode="before")
     def set_default_aud_iss(cls, value, info):

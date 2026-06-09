@@ -11,7 +11,7 @@ Limitations:
 """
 
 import time
-from typing import Callable, Dict, List, Optional
+from typing import Callable, List, Optional
 
 from fastapi import APIRouter, FastAPI, Request, Response
 from prometheus_client import (
@@ -54,17 +54,50 @@ EXCEPTIONS_COUNT = Counter(
 )
 
 
+def _get_route_path(request: Request) -> str:
+    """
+    Extract the route pattern from the request scope instead of the raw URL path.
+
+    FastAPI populates request.scope["route"] after route matching, which happens
+    during call_next(). Calling this function after call_next() ensures the route
+    is available, so /api/v1/wsi/tiles/some-uuid/5/27/1 is recorded as
+    /api/v1/wsi/tiles/{upload_id}/{z}/{x}/{y} — keeping cardinality under control.
+
+    Falls back to raw path for unmatched routes (404s etc.).
+    """
+    route = request.scope.get("route")
+    if route and hasattr(route, "path"):
+        return route.path
+    return request.url.path
+
+
 class PrometheusMiddleware(BaseHTTPMiddleware):
     """
     Middleware to collect HTTP request metrics.
 
     This middleware tracks request counts, latency, and exceptions
     for all HTTP requests processed by the application.
+
+    Args:
+        exclude_paths: URL prefixes to skip metric collection for.
+        group_paths: If True, uses FastAPI route patterns (e.g. /items/{id})
+            instead of raw URLs as the endpoint label. This keeps Prometheus
+            cardinality low when path parameters contain dynamic values like UUIDs.
+            Defaults to False to preserve backwards-compatible behaviour — opt in
+            explicitly via METRICS_GROUP_PATHS=true in settings.
     """
 
-    def __init__(self, app: FastAPI, exclude_paths: List[str] = None, *args, **kwargs):
+    def __init__(
+        self,
+        app: FastAPI,
+        exclude_paths: List[str] = None,
+        group_paths: bool = False,
+        *args,
+        **kwargs,
+    ):
         super().__init__(app, *args, **kwargs)
         self.exclude_paths = exclude_paths or []
+        self.group_paths = group_paths
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Skip metrics collection for excluded paths
@@ -72,38 +105,43 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         method = request.method
-        path = request.url.path
 
-        # Track in-progress requests
-        REQUEST_IN_PROGRESS.labels(method=method, endpoint=path).inc()
+        # Use raw path for in-progress gauge — route is not matched yet at this point.
+        # This is a known limitation: in-progress uses raw path but count/latency
+        # use the grouped route pattern. The gauge is informational only.
+        raw_path = request.url.path
+        REQUEST_IN_PROGRESS.labels(method=method, endpoint=raw_path).inc()
 
         # Track request latency
         start_time = time.time()
 
         try:
             response = await call_next(request)
+
+            # Route is matched now — resolve endpoint label based on group_paths setting.
+            endpoint = _get_route_path(request) if self.group_paths else raw_path
             status_code = response.status_code
 
             # Record request count
             REQUEST_COUNT.labels(
-                method=method, endpoint=path, status_code=status_code
+                method=method, endpoint=endpoint, status_code=status_code
             ).inc()
 
             return response
+
         except Exception as exc:
-            # Record exception
+            endpoint = _get_route_path(request) if self.group_paths else raw_path
             EXCEPTIONS_COUNT.labels(
-                method=method, endpoint=path, exception_type=type(exc).__name__
+                method=method, endpoint=endpoint, exception_type=type(exc).__name__
             ).inc()
             raise
+
         finally:
-            # Record request latency
-            REQUEST_LATENCY.labels(method=method, endpoint=path).observe(
+            endpoint = _get_route_path(request) if self.group_paths else raw_path
+            REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(
                 time.time() - start_time
             )
-
-            # Decrement in-progress counter
-            REQUEST_IN_PROGRESS.labels(method=method, endpoint=path).dec()
+            REQUEST_IN_PROGRESS.labels(method=method, endpoint=raw_path).dec()
 
 
 def setup_metrics_endpoint(
@@ -118,12 +156,18 @@ def setup_metrics_endpoint(
         app: FastAPI application
         settings: Application settings
         logger: Optional logger
+
+    Settings keys (all optional):
+        METRICS_PATH: URL path for the metrics endpoint. Default: /metrics
+        METRICS_EXCLUDE_PATHS: List of URL prefixes to skip. Default: [/metrics, /health]
+        METRICS_GROUP_PATHS: Group dynamic path params into route patterns. Default: False
     """
     log = ensure_logger(logger, __name__, settings)
 
     # Get metrics configuration
     metrics_path = getattr(settings, "METRICS_PATH", "/metrics")
     exclude_paths = getattr(settings, "METRICS_EXCLUDE_PATHS", ["/metrics", "/health"])
+    group_paths = getattr(settings, "METRICS_GROUP_PATHS", False)
 
     # Create router for metrics endpoint
     router = APIRouter(tags=["monitoring"])
@@ -133,14 +177,15 @@ def setup_metrics_endpoint(
         """
         Expose Prometheus metrics.
 
-        This endpoint returns all collected metrics in the Prometheus text format.
+        Returns all collected metrics in the Prometheus text format.
         """
         return Response(
             content=generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST
         )
 
-    # Add Prometheus middleware for metrics collection
-    app.add_middleware(PrometheusMiddleware, exclude_paths=exclude_paths)
+    app.add_middleware(
+        PrometheusMiddleware, exclude_paths=exclude_paths, group_paths=group_paths
+    )
 
     # Add metrics endpoint
     app.include_router(router)
